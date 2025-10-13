@@ -61,3 +61,26 @@
         </form>
     </div>
 </div>
+
+<div id="filterProgramModal" class="modal">
+    <div class="box">
+        <h3>Filter Programs</h3>
+        <form method="GET" action="{{ url('programs') }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+                <select name="dept_id">
+                    <option value="">All Departments</option>
+                    @foreach($departments as $d)
+                        <option value="{{ $d->dept_id }}" {{ request('dept_id') == $d->dept_id ? 'selected' : '' }}>{{ $d->dept_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <input type="hidden" name="search" value="{{ request('search') }}">
+            <input type="hidden" name="sort_by" value="{{ request('sort_by') }}">
+            <input type="hidden" name="sort_dir" value="{{ request('sort_dir') }}">
+            <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end">
+                <button type="button" onclick="closeModal('filterProgramModal')" class="btn-secondary">Cancel</button>
+                <button type="submit">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>

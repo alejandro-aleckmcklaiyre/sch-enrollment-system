@@ -18,10 +18,15 @@ class SectionController extends Controller
         $perPage = (int) $request->query('per_page', 15);
         $query = Section::with(['course','instructor','room','term']);
 
+        $allowedSorts = ['section_id','section_code','course_id','max_capacity'];
+        $sortBy = $request->input('sort_by', 'section_code');
+        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'section_code';
+
         if ($search = $request->query('search')) {
             $query->where('section_code','like',"%{$search}%");
         }
-        $sections = $query->orderBy('section_code')->paginate($perPage)->withQueryString();
+    $sections = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
 
         $courses = Course::orderBy('course_code')->get();
         $instructors = Instructor::orderBy('last_name')->get();
@@ -38,9 +43,14 @@ class SectionController extends Controller
             'section_code' => 'required|string|max:20',
             'course_id' => 'required|exists:tblcourse,course_id',
         ]);
-        if ($validator->fails()) return response()->json(['errors'=>$validator->errors()],422);
-        Section::create($data);
-        return response()->json(['message'=>'Section created']);
+        if ($validator->fails()) return response()->json(['errors'=>$validator->errors(), 'op' => 'add', 'success' => false],422);
+        try {
+            $sec = Section::create($data);
+            return response()->json(['message'=>'Section created', 'op' => 'add', 'success' => true, 'data' => $sec]);
+        } catch (\Exception $e) {
+            \Log::error('Section create failed: ' . $e->getMessage());
+            return response()->json(['message'=>'Section create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()],500);
+        }
     }
 
     public function update(Request $request, $id)
@@ -51,16 +61,26 @@ class SectionController extends Controller
             'section_code' => 'required|string|max:20',
             'course_id' => 'required|exists:tblcourse,course_id',
         ]);
-        if ($validator->fails()) return response()->json(['errors'=>$validator->errors()],422);
-        $s->update($data);
-        return response()->json(['message'=>'Section updated']);
+        if ($validator->fails()) return response()->json(['errors'=>$validator->errors(), 'op' => 'update', 'success' => false],422);
+        try {
+            $s->update($data);
+            return response()->json(['message'=>'Section updated', 'op' => 'update', 'success' => true, 'data' => $s]);
+        } catch (\Exception $e) {
+            \Log::error('Section update failed: ' . $e->getMessage());
+            return response()->json(['message'=>'Section update failed', 'op' => 'update', 'success' => false, 'error' => $e->getMessage()],500);
+        }
     }
 
     public function destroy($id)
     {
         $s = Section::findOrFail($id);
-        $s->delete();
-        return response()->json(['message'=>'Section deleted']);
+        try {
+            $s->delete();
+            return response()->json(['message'=>'Section deleted', 'op' => 'delete', 'success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Section delete failed: ' . $e->getMessage());
+            return response()->json(['message'=>'Section delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()],500);
+        }
     }
 
     public function exportExcel(Request $request)
@@ -68,7 +88,12 @@ class SectionController extends Controller
         $query = Section::with(['course','instructor','room','term']);
         $search = $request->input('search', $request->query('search'));
         if($search) $query->where('section_code','like',"%{$search}%");
-        $items = $query->orderBy('section_code')->get();
+        $allowedSorts = ['section_id','section_code','course_id','max_capacity'];
+        $sortBy = $request->input('sort_by', 'section_code');
+        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'section_code';
+
+        $items = $query->orderBy($sortBy, $sortDir)->get();
 
         $filename = 'sections_' . date('Ymd_His') . '.csv';
         $headers = [
@@ -78,9 +103,10 @@ class SectionController extends Controller
 
         $callback = function() use ($items) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Section Code','Course','Term','Instructor','Room','Max Capacity']);
+            fputcsv($out, ['ID','Section Code','Course','Term','Instructor','Room','Max Capacity']);
             foreach ($items as $i) {
                 fputcsv($out, [
+                    $i->section_id,
                     $i->section_code,
                     optional($i->course)->course_code,
                     optional($i->term)->term_code,

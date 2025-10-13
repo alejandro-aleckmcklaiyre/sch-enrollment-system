@@ -13,6 +13,11 @@ class InstructorController extends Controller
     {
         $query = Instructor::with('department');
 
+        $allowedSorts = ['instructor_id','last_name','first_name','email','dept_id'];
+        $sortBy = $request->input('sort_by', 'instructor_id');
+        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'instructor_id';
+
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('last_name', 'like', "%{$search}%")
@@ -23,7 +28,7 @@ class InstructorController extends Controller
 
         $perPage = $request->input('per_page', 15);
 
-        $instructors = $query->orderBy('instructor_id', 'desc')->paginate($perPage)->withQueryString();
+    $instructors = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
 
         $departments = \App\Models\Department::orderBy('dept_name')->get();
 
@@ -42,12 +47,20 @@ class InstructorController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-
-        Instructor::create($data);
-
-        return response()->json(['message' => 'Instructor created']);
+        // Duplicate check by email
+        if (!empty($data['email']) && Instructor::where('email', $data['email'])->exists()) {
+            return response()->json(['message' => 'An instructor with that email already exists in records.', 'op' => 'add', 'success' => false], 409);
+        }
+        try {
+            $instructor = Instructor::create($data);
+            \Log::info('Instructor created: ' . $instructor->instructor_id);
+            return response()->json(['message' => 'Instructor created', 'op' => 'add', 'success' => true, 'data' => $instructor]);
+        } catch (\Exception $e) {
+            \Log::error('Instructor create failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Instructor create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function update(Request $request, $id)
@@ -63,20 +76,27 @@ class InstructorController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'op' => 'update', 'success' => false], 422);
         }
-
-        $instructor->update($data);
-
-        return response()->json(['message' => 'Instructor updated']);
+        try {
+            $instructor->update($data);
+            return response()->json(['message' => 'Instructor updated', 'op' => 'update', 'success' => true, 'data' => $instructor]);
+        } catch (\Exception $e) {
+            \Log::error('Instructor update failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Instructor update failed', 'op' => 'update', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function destroy($id)
     {
         $instructor = Instructor::findOrFail($id);
-        $instructor->delete();
-
-        return response()->json(['message' => 'Instructor deleted']);
+        try {
+            $instructor->delete();
+            return response()->json(['message' => 'Instructor deleted', 'op' => 'delete', 'success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Instructor delete failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Instructor delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function exportExcel(Request $request)
@@ -85,6 +105,12 @@ class InstructorController extends Controller
         $filtered = $request->input('filtered', false);
         $search = $request->input('search');
         $dept = $request->input('dept_id');
+
+        // sorting
+        $allowedSorts = ['instructor_id','last_name','first_name','email','dept_id'];
+        $sortBy = $request->input('sort_by', 'instructor_id');
+        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'instructor_id';
 
         $query = Instructor::query();
         if ($search) {
@@ -96,7 +122,7 @@ class InstructorController extends Controller
         }
         if ($dept) $query->where('dept_id', $dept);
 
-        $instructors = $filtered ? $query->orderBy('instructor_id','desc')->get() : Instructor::orderBy('instructor_id','desc')->get();
+    $instructors = $filtered ? $query->orderBy($sortBy,$sortDir)->get() : Instructor::orderBy($sortBy,$sortDir)->get();
 
         $filename = 'instructors.csv';
         $headers = ['ID','Last Name','First Name','Email','Dept ID'];

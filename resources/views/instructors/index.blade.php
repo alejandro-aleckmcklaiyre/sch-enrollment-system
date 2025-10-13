@@ -3,48 +3,41 @@
 @section('title','Instructors')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createInstructorModal')">Manage</button>
-        <form method="GET" action="{{ url('instructors') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <select name="dept_id">
-                <option value="">All Departments</option>
-                @foreach($departments as $d)
-                    <option value="{{ $d->dept_id }}" {{ request('dept_id') == $d->dept_id ? 'selected' : '' }}>{{ $d->dept_name }}</option>
-                @endforeach
-            </select>
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('instructors/export-excel') }}" style="display:inline">
-            @csrf
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="dept_id" value="{{ request('dept_id') }}">
-            <button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('instructors/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="dept_id" value="{{ request('dept_id') }}">
-            <button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('instructors'),
+        'exportExcelUrl' => url('instructors/export-excel'),
+        'exportPdfUrl' => url('instructors/export-pdf'),
+        'manageModalId' => 'createInstructorModal',
+        'filterModalId' => 'filterInstructorModal'
+    ])
 @endsection
 
 @section('content')
+    @include('partials.table-controls', [
+        'listUrl' => url('instructors'),
+        'sortFields' => [
+            ['value' => 'instructor_id', 'label' => 'ID'],
+            ['value' => 'last_name', 'label' => 'Last Name'],
+            ['value' => 'first_name', 'label' => 'First Name'],
+        ],
+        'filterModalId' => 'filterInstructorModal'
+    ])
+
     <table>
         <thead>
             <tr>
-                <th>Last Name</th>
-                <th>First Name</th>
-                <th>Email</th>
-                <th>Department</th>
+                <th>@include('partials._sortable_header', ['label'=>'ID','field'=>'instructor_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Last Name','field'=>'last_name'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'First Name','field'=>'first_name'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Email','field'=>'email'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Department','field'=>'dept_id'])</th>
                 <th style="text-align:left">Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach($instructors as $i)
                 <tr>
+                    <td>{{ $i->instructor_id }}</td>
                     <td>{{ $i->last_name }}</td>
                     <td>{{ $i->first_name }}</td>
                     <td>{{ $i->email }}</td>
@@ -88,21 +81,21 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('createInstructorModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createInstructorModal'); });
     });
 
     document.getElementById('editInstructorForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.instructor_id.value;
         fetch('/instructors/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('editInstructorModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editInstructorModal'); });
     });
 
     document.getElementById('deleteInstructorForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.instructor_id.value;
         fetch('/instructors/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('deleteInstructorModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteInstructorModal'); });
     });
 </script>
 @endpush

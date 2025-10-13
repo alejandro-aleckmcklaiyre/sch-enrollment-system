@@ -13,6 +13,11 @@ class CourseController extends Controller
     {
         $query = Course::with('department');
 
+        $allowedSorts = ['course_id','course_code','course_title','dept_id','units'];
+        $sortBy = $request->input('sort_by', 'course_id');
+        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'course_id';
+
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('course_code', 'like', "%{$search}%")
@@ -22,7 +27,7 @@ class CourseController extends Controller
 
         $perPage = $request->input('per_page', 15);
 
-        $courses = $query->orderBy('course_id', 'desc')->paginate($perPage)->withQueryString();
+    $courses = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
 
         $departments = \App\Models\Department::orderBy('dept_name')->get();
 
@@ -43,12 +48,20 @@ class CourseController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-
-        Course::create($data);
-
-        return response()->json(['message' => 'Course created']);
+        // Duplicate check by course_code
+        if (!empty($data['course_code']) && Course::where('course_code', $data['course_code'])->exists()) {
+            return response()->json(['message' => 'A course with that course code already exists in records.', 'op' => 'add', 'success' => false], 409);
+        }
+        try {
+            $course = Course::create($data);
+            \Log::info('Course created: ' . $course->course_id);
+            return response()->json(['message' => 'Course created', 'op' => 'add', 'success' => true, 'data' => $course]);
+        } catch (\Exception $e) {
+            \Log::error('Course create failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Course create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function update(Request $request, $id)
@@ -66,26 +79,39 @@ class CourseController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'op' => 'update', 'success' => false], 422);
         }
-
-        $course->update($data);
-
-        return response()->json(['message' => 'Course updated']);
+        try {
+            $course->update($data);
+            return response()->json(['message' => 'Course updated', 'op' => 'update', 'success' => true, 'data' => $course]);
+        } catch (\Exception $e) {
+            \Log::error('Course update failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Course update failed', 'op' => 'update', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function destroy($id)
     {
         $course = Course::findOrFail($id);
-        $course->delete();
-
-        return response()->json(['message' => 'Course deleted']);
+        try {
+            $course->delete();
+            return response()->json(['message' => 'Course deleted', 'op' => 'delete', 'success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Course delete failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Course delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function exportExcel(Request $request)
     {
         $filtered = $request->input('filtered', false);
         $search = $request->input('search');
+
+        // sorting
+        $allowedSorts = ['course_id','course_code','course_title','dept_id','units'];
+        $sortBy = $request->input('sort_by', 'course_id');
+        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'course_id';
 
         $query = Course::with('department');
         if ($search) {
@@ -95,7 +121,7 @@ class CourseController extends Controller
             });
         }
 
-        $courses = $filtered ? $query->orderBy('course_id','desc')->get() : Course::with('department')->orderBy('course_id','desc')->get();
+    $courses = $filtered ? $query->orderBy($sortBy,$sortDir)->get() : Course::with('department')->orderBy($sortBy,$sortDir)->get();
 
         $filename = 'courses.csv';
         $headers = ['ID','Course Code','Course Title','Units','Lecture Hours','Lab Hours','Department'];

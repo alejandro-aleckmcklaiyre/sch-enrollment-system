@@ -55,3 +55,21 @@
         </form>
     </div>
 </div>
+
+<div id="filterRoomModal" class="modal">
+    <div class="box">
+        <h3>Filter Rooms</h3>
+        <form method="GET" action="{{ url('rooms') }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+                <!-- placeholder for future room filters -->
+            </div>
+            <input type="hidden" name="search" value="{{ request('search') }}">
+            <input type="hidden" name="sort_by" value="{{ request('sort_by') }}">
+            <input type="hidden" name="sort_dir" value="{{ request('sort_dir') }}">
+            <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end">
+                <button type="button" onclick="closeModal('filterRoomModal')" class="btn-secondary">Cancel</button>
+                <button type="submit">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -3,34 +3,33 @@
 @section('title','Programs')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createProgramModal')">Manage</button>
-        <form method="GET" action="{{ url('programs') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('programs/export-excel') }}" style="display:inline">
-            @csrf
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('programs/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('programs'),
+        'exportExcelUrl' => url('programs/export-excel'),
+        'exportPdfUrl' => url('programs/export-pdf'),
+        'manageModalId' => 'createProgramModal',
+        'filterModalId' => 'filterProgramModal'
+    ])
 @endsection
 
 @section('content')
+    @include('partials.table-controls', [
+        'listUrl' => url('programs'),
+        'sortFields' => [
+            ['value' => 'program_id', 'label' => 'ID'],
+            ['value' => 'program_code', 'label' => 'Program Code'],
+            ['value' => 'program_name', 'label' => 'Program Name'],
+        ],
+        'filterModalId' => 'filterProgramModal'
+    ])
+
     <table>
         <thead>
             <tr>
-                <th>#</th>
-                <th>Program Code</th>
-                <th>Program Name</th>
-                <th>Department</th>
+                <th>@include('partials._sortable_header', ['label'=>'ID','field'=>'program_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Program Code','field'=>'program_code'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Program Name','field'=>'program_name'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Department','field'=>'dept_id'])</th>
                 <th style="text-align:left">Actions</th>
             </tr>
         </thead>
@@ -81,21 +80,21 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('createProgramModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createProgramModal'); });
     });
 
     document.getElementById('editProgramForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.program_id.value;
         fetch('/programs/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('editProgramModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editProgramModal'); });
     });
 
     document.getElementById('deleteProgramForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.program_id.value;
         fetch('/programs/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('deleteProgramModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteProgramModal'); });
     });
 </script>
 @endpush

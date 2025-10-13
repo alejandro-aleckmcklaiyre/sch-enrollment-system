@@ -46,7 +46,7 @@ document.getElementById('deleteForm').addEventListener('submit', function(e){
     fetch('/course-prerequisites/' + encodeURIComponent(composite), {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'DELETE' }
-    }).then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('deletePrereqModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=>{ handleResponse(resp,'deletePrereqModal'); });
 });
 </script>
 </div>

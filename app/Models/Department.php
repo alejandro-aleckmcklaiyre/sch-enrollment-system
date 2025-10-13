@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\SoftDeleteFlag;
 
 class Department extends Model
 {
     use HasFactory;
+    use SoftDeleteFlag;
 
     protected $table = 'tbldepartment';
     protected $primaryKey = 'dept_id';
@@ -16,5 +18,6 @@ class Department extends Model
     protected $fillable = [
         'dept_code',
         'dept_name',
+        'is_deleted',
     ];
 }

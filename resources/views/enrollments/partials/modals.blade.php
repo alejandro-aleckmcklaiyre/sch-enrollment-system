@@ -78,7 +78,7 @@ document.getElementById('createForm').addEventListener('submit', function(e){
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value },
         body: data
-    }).then(r=>r.json()).then(resp=> { if(resp && resp.message){ closeModal('createEnrollmentModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'createEnrollmentModal'); });
 });
 
 // Edit
@@ -90,7 +90,7 @@ document.getElementById('editForm').addEventListener('submit', function(e){
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'PUT' },
         body: data
-    }).then(r=>r.json()).then(resp=> { if(resp && resp.message){ closeModal('editEnrollmentModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'editEnrollmentModal'); });
 });
 
 // Delete
@@ -100,6 +100,6 @@ document.getElementById('deleteForm').addEventListener('submit', function(e){
     fetch('/enrollments/' + id, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'DELETE' }
-    }).then(r=>r.json()).then(resp=> { if(resp && resp.message){ closeModal('deleteEnrollmentModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'deleteEnrollmentModal'); });
 });
 </script>

@@ -3,39 +3,40 @@
 @section('title','Rooms')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createRoomModal')">Manage</button>
-        <form method="GET" action="{{ url('rooms') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('rooms/export-excel') }}" style="display:inline">
-            @csrf
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('rooms/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('rooms'),
+        'exportExcelUrl' => url('rooms/export-excel'),
+        'exportPdfUrl' => url('rooms/export-pdf'),
+        'manageModalId' => 'createRoomModal',
+        'filterModalId' => 'filterRoomModal'
+    ])
 @endsection
 
 @section('content')
+    @include('partials.table-controls', [
+        'listUrl' => url('rooms'),
+        'sortFields' => [
+            ['value' => 'room_id', 'label' => 'ID'],
+            ['value' => 'building', 'label' => 'Building'],
+            ['value' => 'room_code', 'label' => 'Room Code'],
+        ],
+        'filterModalId' => 'filterRoomModal'
+    ])
+
     <table>
         <thead>
             <tr>
-                <th>Building</th>
-                <th>Room Code</th>
-                <th>Capacity</th>
+                <th>@include('partials._sortable_header', ['label'=>'ID','field'=>'room_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Building','field'=>'building'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Room Code','field'=>'room_code'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Capacity','field'=>'capacity'])</th>
                 <th style="text-align:left">Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach($rooms as $r)
                 <tr>
+                    <td>{{ $r->room_id }}</td>
                     <td>{{ $r->building }}</td>
                     <td>{{ $r->room_code }}</td>
                     <td>{{ $r->capacity }}</td>
@@ -77,21 +78,21 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('createRoomModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createRoomModal'); });
     });
 
     document.getElementById('editRoomForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.room_id.value;
         fetch('/rooms/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('editRoomModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editRoomModal'); });
     });
 
     document.getElementById('deleteRoomForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.room_id.value;
         fetch('/rooms/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('deleteRoomModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteRoomModal'); });
     });
 </script>
 @endpush

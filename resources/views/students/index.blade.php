@@ -3,46 +3,40 @@
 @section('title','Students')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createModal')">Manage</button>
-        <form method="GET" action="{{ url('students') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <select name="year_level">
-                <option value="">All Years</option>
-                @for($i=1;$i<=5;$i++)
-                    <option value="{{ $i }}" {{ request('year_level') == $i ? 'selected' : '' }}>{{ $i }}</option>
-                @endfor
-            </select>
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('students/export-excel') }}" style="display:inline">
-            @csrf
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="year_level" value="{{ request('year_level') }}">
-            <button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('students/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="year_level" value="{{ request('year_level') }}">
-            <button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('students'),
+        'exportExcelUrl' => url('students/export-excel'),
+        'exportPdfUrl' => url('students/export-pdf'),
+        'manageModalId' => 'createModal',
+        'filterModalId' => 'filterModal'
+    ])
 @endsection
 
 @section('content')
+    {{-- controls bar below the title and toolbar --}}
+    @include('partials.table-controls', [
+        'listUrl' => url('students'),
+        'sortFields' => [
+            ['value' => 'student_id', 'label' => 'ID'],
+            ['value' => 'last_name', 'label' => 'Last Name'],
+            ['value' => 'first_name', 'label' => 'First Name'],
+            ['value' => 'email', 'label' => 'Email'],
+            ['value' => 'birthdate', 'label' => 'Birthdate'],
+        ],
+        'filterModalId' => 'filterModal'
+    ])
     <table>
         <thead>
             <tr>
+                <th style="width:64px">@include('partials._sortable_header', ['label' => 'ID', 'field' => 'student_id'])</th>
                 <th>Student No</th>
-                <th>Last Name</th>
-                <th>First Name</th>
+                <th>@include('partials._sortable_header', ['label' => 'Last Name', 'field' => 'last_name'])</th>
+                <th>@include('partials._sortable_header', ['label' => 'First Name', 'field' => 'first_name'])</th>
                 <th>Middle Name</th>
-                <th>Email</th>
-                <th>Gender</th>
-                <th>Birthdate</th>
-                <th>Year</th>
+                <th>@include('partials._sortable_header', ['label' => 'Email', 'field' => 'email'])</th>
+                <th>@include('partials._sortable_header', ['label' => 'Gender', 'field' => 'gender'])</th>
+                <th>@include('partials._sortable_header', ['label' => 'Birthdate', 'field' => 'birthdate'])</th>
+                <th>@include('partials._sortable_header', ['label' => 'Year', 'field' => 'year_level'])</th>
                 <th>Program</th>
                 <th style="text-align:left">Actions</th>
             </tr>
@@ -50,6 +44,7 @@
         <tbody>
             @foreach($students as $s)
                 <tr>
+                    <td>{{ $s->student_id }}</td>
                     <td>{{ $s->student_no }}</td>
                     <td>{{ $s->last_name }}</td>
                     <td>{{ $s->first_name }}</td>
@@ -105,21 +100,21 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-        .then(r=>r.json()).then(resp=>handleResponse(resp,'createModal'));
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createModal'); });
     });
 
     document.getElementById('editForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.student_id.value;
         fetch('/students/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-        .then(r=>r.json()).then(resp=>handleResponse(resp,'editModal'));
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editModal'); });
     });
 
     document.getElementById('deleteForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.student_id.value;
         fetch('/students/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-        .then(r=>r.json()).then(resp=>handleResponse(resp,'deleteModal'));
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteModal'); });
     });
 </script>
 @endpush

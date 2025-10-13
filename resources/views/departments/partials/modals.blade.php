@@ -62,7 +62,7 @@ document.getElementById('createForm').addEventListener('submit', function(e){
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value },
         body: data
-    }).then(r=>r.json()).then(resp=> { if(resp && resp.message){ closeModal('createDepartmentModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'createDepartmentModal'); });
 });
 
 // Edit
@@ -74,7 +74,7 @@ document.getElementById('editForm').addEventListener('submit', function(e){
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'PUT' },
         body: data
-    }).then(r=>r.json()).then(resp=> { if(resp && resp.message){ closeModal('editDepartmentModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'editDepartmentModal'); });
 });
 
 // Delete
@@ -84,6 +84,6 @@ document.getElementById('deleteForm').addEventListener('submit', function(e){
     fetch('/departments/' + id, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'DELETE' }
-    }).then(r=>r.json()).then(resp=> { if(resp && resp.message){ closeModal('deleteDepartmentModal'); location.reload(); } else console.error(resp); });
+    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'deleteDepartmentModal'); });
 });
 </script>
