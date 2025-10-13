@@ -42,15 +42,18 @@ class InstructorController extends Controller
         $validator = Validator::make($data, [
             'last_name' => 'required|string',
             'first_name' => 'required|string',
-            'email' => 'nullable|email|unique:tblinstructor,email',
+            'email' => [
+                'nullable','email',
+                \Illuminate\Validation\Rule::unique('tblinstructor','email')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'dept_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-        // Duplicate check by email
-        if (!empty($data['email']) && Instructor::where('email', $data['email'])->exists()) {
+        // Duplicate check by email (ignore soft-deleted rows)
+        if (!empty($data['email']) && Instructor::where('email', $data['email'])->where('is_deleted', 0)->exists()) {
             return response()->json(['message' => 'An instructor with that email already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
@@ -71,7 +74,10 @@ class InstructorController extends Controller
         $validator = Validator::make($data, [
             'last_name' => 'required|string',
             'first_name' => 'required|string',
-            'email' => 'nullable|email|unique:tblinstructor,email,' . $instructor->instructor_id . ',instructor_id',
+            'email' => [
+                'nullable','email',
+                \Illuminate\Validation\Rule::unique('tblinstructor','email')->ignore($instructor->instructor_id,'instructor_id')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'dept_id' => 'nullable|integer',
         ]);
 

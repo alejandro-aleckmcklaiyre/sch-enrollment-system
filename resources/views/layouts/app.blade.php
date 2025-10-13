@@ -153,50 +153,145 @@
 
     // handleResponse: closable and non-reloading by default. If server sends force_reload=true, do a reload.
     function handleResponse(resp, modalId){
-        if(resp){
-            try{ closeModal(modalId); }catch(e){}
-            // Determine operation: prefer explicit fields from server
-            let op = resp.op || resp.action || resp.type || null;
-            const msg = (resp.message || '') + '';
-            const lower = msg.toLowerCase();
-            if(!op){
-                if(/add|create|added|created/.test(lower)) op = 'add';
-                else if(/update|updated|edit/.test(lower)) op = 'update';
-                else if(/delete|removed|archive|archived/.test(lower)) op = 'delete';
-            }
-            const success = !(resp.error || resp.status === 'error' || (resp.status && resp.status.toString().toLowerCase()==='fail'));
-
-            // Default standardized messages per user request
-            const messages = {
-                add: {
-                    success: { title: 'Add Record', detail: '✅ Success: Record added successfully.' },
-                    error:   { title: 'Add Record', detail: '❌ Failed: Unable to add record. Please try again.' }
-                },
-                update: {
-                    success: { title: 'Edit / Update Record', detail: '✅ Success: Record updated successfully.' },
-                    error:   { title: 'Edit / Update Record', detail: '❌ Failed: Unable to update record. Please try again.' }
-                },
-                delete: {
-                    success: { title: 'Delete Record', detail: '✅ Success: Record has been removed successfully.' },
-                    error:   { title: 'Delete Record', detail: '❌ Failed: Unable to delete record. Please try again.' }
-                }
-            };
-
-            let payload = null;
-            if(op && messages[op]){
-                payload = success ? messages[op].success : messages[op].error;
-            } else {
-                // fallback: use server message but format
-                payload = success ? { title: 'Success', detail: '✅ ' + (resp.message || 'Operation completed.') } : { title: 'Failed', detail: '❌ ' + (resp.message || 'Operation failed.') };
-            }
-
-            // Do not surface backend DB details in the UI. Use server-provided 'message' only.
-
-            showAlert(success ? 'success' : 'error', payload);
+        // New enhanced response handler: will inspect httpStatus (if provided), resp.op, and resp.data
+        // Close modal by default only on success responses. Validation (422) and Duplicate (409) keep modal open.
+        if(!resp) return;
+        // allow server to provide an explicit httpStatus property (helpers below will pass it through)
+        const httpStatus = resp.httpStatus || resp.statusCode || null;
+        // Infer op and success
+        let op = resp.op || resp.action || resp.type || null;
+        const message = (resp.message || '') + '';
+        const lower = message.toLowerCase();
+        if(!op){
+            if(/add|create|added|created/.test(lower)) op = 'add';
+            else if(/update|updated|edit/.test(lower)) op = 'update';
+            else if(/delete|removed|archive|archived/.test(lower)) op = 'delete';
         }
-        if(resp && (resp.force_reload === true || resp.reload === true)){
+
+        const success = (httpStatus ? (httpStatus >= 200 && httpStatus < 300) : !!resp.success);
+
+        // Handle validation errors (422)
+        if(httpStatus === 422 || (resp.errors && !success)){
+            // keep modal open, show inline field errors if possible
+            try{ openModal(modalId); }catch(e){}
+            if(typeof showFormErrors === 'function') showFormErrors(modalId, resp.errors || {});
+            // show a small alert summarizing the problem
+            showAlert('error', { title: 'Validation error', detail: resp.message || 'Please correct the highlighted fields.' }, { sticky: false });
+            return;
+        }
+
+        // Handle duplicate (409)
+        if(httpStatus === 409){
+            // open a standardized duplicate modal with server message
+            if(typeof openDuplicateModal === 'function'){
+                openDuplicateModal(resp.message || 'This record already exists in the database.');
+            } else {
+                showAlert('error', { title: 'Duplicate record', detail: resp.message || 'This record already exists in the database.' });
+            }
+            return;
+        }
+
+        // Success path: close modal, insert row if provided, and show success alert
+        if(success){
+            try{ closeModal(modalId); }catch(e){}
+            // Insert row_html or try to build a row from resp.data
+            if(resp.row_html && typeof resp.row_html === 'string'){
+                if(typeof insertRowHtml === 'function') insertRowHtml(resp.row_html, resp.op || op);
+            } else if(resp.data){
+                if(typeof insertRowData === 'function') insertRowData(resp.data, resp.op || op);
+            }
+            // show success toast
+            const title = op ? (op === 'add' ? 'Add Record' : (op === 'update' ? 'Update' : 'Success')) : 'Success';
+            showAlert('success', { title: title, detail: resp.message || '✅ Record added successfully.' });
+        } else {
+            // fallback error
+            showAlert('error', { title: 'Error', detail: resp.message || '❌ Unable to complete the operation. Please try again.' });
+        }
+
+        // Always reload after successful add/update/delete to refresh UI state (short delay for toast)
+        if(success && (op === 'add' || op === 'update' || op === 'delete')){
             setTimeout(()=> location.reload(), 450);
         }
+    }
+
+    // Show inline form validation errors inside modal. Expects errors in Laravel format { field: [messages] }
+    function showFormErrors(modalId, errors){
+        try{
+            const modal = document.getElementById(modalId);
+            if(!modal) return;
+            // Clear prior
+            clearFormErrors(modalId);
+            Object.keys(errors || {}).forEach(field => {
+                const input = modal.querySelector('[name="' + field + '"]');
+                const container = input ? input.parentElement : modal.querySelector('.box');
+                if(input){
+                    input.classList.add('has-error');
+                    const el = document.createElement('div'); el.className='field-error'; el.style.color='#8a2b2b'; el.style.marginTop='6px'; el.innerText = errors[field].join(' ');
+                    container.appendChild(el);
+                }
+            });
+        }catch(e){ console.error(e); }
+    }
+
+    function clearFormErrors(modalId){
+        try{
+            const modal = document.getElementById(modalId);
+            if(!modal) return;
+            modal.querySelectorAll('.field-error').forEach(n=>n.remove());
+            modal.querySelectorAll('.has-error').forEach(i=>i.classList.remove('has-error'));
+        }catch(e){console.error(e)}
+    }
+
+    // Insert raw row HTML into first table body on the page
+    function insertRowHtml(rowHtml, op){
+        try{
+            const tbody = document.querySelector('table tbody');
+            if(!tbody) return;
+            const temp = document.createElement('tbody'); temp.innerHTML = rowHtml.trim();
+            // If the rowHtml contains multiple rows use them all
+            const rows = Array.from(temp.children);
+            rows.forEach(r=> tbody.insertBefore(r, tbody.firstChild));
+        }catch(e){ console.error(e); }
+    }
+
+    // Build a simple table row from resp.data using data-* attributes on the header cells as guidance would be complex.
+    // We'll try to find a related resource by examining the current page title and create columns in the same order as the first existing row.
+    function insertRowData(data, op){
+        try{
+            const tbody = document.querySelector('table tbody');
+            if(!tbody) return;
+            const firstRow = tbody.querySelector('tr');
+            if(!firstRow){
+                // no rows exist yet, create a row with the values of data
+                const tr = document.createElement('tr');
+                Object.keys(data).forEach(k=>{ const td = document.createElement('td'); td.innerText = data[k]; tr.appendChild(td); });
+                tbody.appendChild(tr); return;
+            }
+            // Heuristic: clone first row, then replace textContent for each cell with matching data fields where possible
+            const tr = firstRow.cloneNode(true);
+            const cells = tr.querySelectorAll('td');
+            const keys = Object.keys(data);
+            for(let i=0;i<cells.length;i++){
+                const key = keys[i] || null;
+                if(key){ cells[i].innerText = data[key] ?? cells[i].innerText; }
+            }
+            tbody.insertBefore(tr, firstRow);
+        }catch(e){ console.error(e); }
+    }
+
+    // Duplicate modal helper
+    function openDuplicateModal(message){
+        // Reuse a generic modal id to display duplicates. Create it if missing
+        let id = 'duplicateAlertModal';
+        let modal = document.getElementById(id);
+        if(!modal){
+            modal = document.createElement('div'); modal.id = id; modal.className='modal'; modal.style.display='none';
+            const box = document.createElement('div'); box.className='box';
+            box.innerHTML = '<h3>Duplicate Record</h3><p id="duplicateMessage"></p><div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;"><button type="button" onclick="closeModal(\'duplicateAlertModal\')" class="btn-secondary">Close</button></div>';
+            modal.appendChild(box); document.body.appendChild(modal);
+        }
+        modal.querySelector('#duplicateMessage').innerText = message;
+        openModal(id);
     }
 </script>
 

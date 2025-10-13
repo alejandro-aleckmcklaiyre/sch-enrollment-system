@@ -100,21 +100,27 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createModal'); });
+    .then(r => r.json().then(data => { data.httpStatus = r.status; return data }))
+    .then(resp=>{ handleResponse(resp,'createModal'); })
+    .catch(err => { console.error(err); showAlert('error', { title: 'Error', detail: 'Request failed' }); });
     });
 
     document.getElementById('editForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.student_id.value;
         fetch('/students/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editModal'); });
+    .then(r => r.json().then(data => { data.httpStatus = r.status; return data }))
+    .then(resp=>{ handleResponse(resp,'editModal'); })
+    .catch(err => { console.error(err); showAlert('error', { title: 'Error', detail: 'Request failed' }); });
     });
 
     document.getElementById('deleteForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.student_id.value;
         fetch('/students/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteModal'); });
+    .then(r => r.json().then(data => { data.httpStatus = r.status; return data }))
+    .then(resp=>{ handleResponse(resp,'deleteModal'); })
+    .catch(err => { console.error(err); showAlert('error', { title: 'Error', detail: 'Request failed' }); });
     });
 </script>
 @endpush

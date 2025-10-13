@@ -54,15 +54,29 @@
 </div>
 
 <script>
+// Unified fetch helper to pass HTTP status and JSON body to handleResponse
+function submitFormWithStatus(fetchPromise, modalId){
+    fetchPromise.then(async (res)=>{
+        let body = {};
+        try{ body = await res.json(); } catch(e) { body = { message: 'No response body' }; }
+        // attach http status for better handling
+        body.httpStatus = res.status;
+        handleResponse(body, modalId);
+    }).catch(e=>{
+        console.error(e);
+        handleResponse({ message: 'Network error', success:false, error:true, httpStatus:0 }, modalId);
+    });
+}
+
 // Create
 document.getElementById('createForm').addEventListener('submit', function(e){
     e.preventDefault();
     var data = new FormData(this);
-    fetch(this.action, {
+    submitFormWithStatus(fetch(this.action, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value },
         body: data
-    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'createDepartmentModal'); });
+    }), 'createDepartmentModal');
 });
 
 // Edit
@@ -70,20 +84,20 @@ document.getElementById('editForm').addEventListener('submit', function(e){
     e.preventDefault();
     var id = document.getElementById('edit_id').value;
     var data = new FormData(this);
-    fetch('/departments/' + id, {
+    submitFormWithStatus(fetch('/departments/' + id, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'PUT' },
         body: data
-    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'editDepartmentModal'); });
+    }), 'editDepartmentModal');
 });
 
 // Delete
 document.getElementById('deleteForm').addEventListener('submit', function(e){
     e.preventDefault();
     var id = document.getElementById('delete_id').value;
-    fetch('/departments/' + id, {
+    submitFormWithStatus(fetch('/departments/' + id, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value, 'X-HTTP-Method-Override': 'DELETE' }
-    }).then(r=>r.json()).then(resp=> { handleResponse(resp,'deleteDepartmentModal'); });
+    }), 'deleteDepartmentModal');
 });
 </script>
