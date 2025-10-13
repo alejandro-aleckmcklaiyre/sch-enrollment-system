@@ -89,8 +89,8 @@
 
     document.getElementById('editForm').addEventListener('submit', function(e){
         e.preventDefault();
-        const id = e.target.id.value;
-        fetch('/enrollments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
+        const id = this.querySelector('[name="id"]').value || document.getElementById('edit_id')?.value;
+        fetch('/enrollments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(this)})
     .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editEnrollmentModal'); });
     });
 

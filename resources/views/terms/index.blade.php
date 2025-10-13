@@ -55,7 +55,7 @@
 
 @push('scripts')
 <script>
-function openTermEdit(id,data){ const modal=document.getElementById('editTermModal'); modal.style.display='flex'; modal.querySelector('[name="term_id"]').value=data.term_id; }
-function openTermDelete(id){ const modal=document.getElementById('deleteTermModal'); modal.style.display='flex'; modal.querySelector('[name="term_id"]').value=id; }
+function openTermEdit(id,data){ const modal=document.getElementById('editTermModal'); modal.style.display='flex'; document.getElementById('edit_term_id').value = data.term_id || id; modal.querySelector('[name="term_code"]').value = data.term_code || ''; modal.querySelector('[name="start_date"]').value = data.start_date || ''; modal.querySelector('[name="end_date"]').value = data.end_date || ''; }
+function openTermDelete(id){ const modal=document.getElementById('deleteTermModal'); modal.style.display='flex'; document.getElementById('delete_term_id').value = id; }
 </script>
 @endpush

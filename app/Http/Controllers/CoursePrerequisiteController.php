@@ -61,6 +61,30 @@ class CoursePrerequisiteController extends Controller
         return response()->json(['error'=>'Invalid id', 'success' => false],400);
     }
 
+    public function update(Request $request, $id)
+    {
+        // Composite id expected as course:prereq
+        if(strpos($id,':') === false){
+            return response()->json(['message'=>'Invalid id','success'=>false],400);
+        }
+        [$course,$pre] = explode(':',$id);
+        $data = $request->only(['course_id','prereq_course_id']);
+        $validator = Validator::make($data, ['course_id'=>'required|exists:tblcourse,course_id','prereq_course_id'=>'required|exists:tblcourse,course_id']);
+        if($validator->fails()) return response()->json(['errors'=>$validator->errors(), 'op' => 'update', 'success' => false],422);
+        try{
+            $pr = CoursePrerequisite::where('course_id',$course)->where('prereq_course_id',$pre)->firstOrFail();
+            $pr->course_id = $data['course_id'];
+            $pr->prereq_course_id = $data['prereq_course_id'];
+            $pr->save();
+            return response()->json(['message'=>'Prerequisite updated', 'op' => 'update', 'success' => true, 'data' => $pr]);
+        } catch(\Illuminate\Database\Eloquent\ModelNotFoundException $e){
+            return response()->json(['message'=>'Prerequisite not found','success'=>false],404);
+        } catch(\Exception $e){
+            \Log::error('Prerequisite update failed: ' . $e->getMessage());
+            return response()->json(['message'=>'Prerequisite update failed', 'op' => 'update', 'success' => false, 'error' => $e->getMessage()],500);
+        }
+    }
+
     public function exportExcel(Request $request)
     {
         $query = CoursePrerequisite::with(['course','prereq']);

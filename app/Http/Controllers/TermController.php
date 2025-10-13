@@ -20,7 +20,7 @@ class TermController extends Controller
         $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
         if (!in_array($sortBy, $allowedSorts)) $sortBy = 'term_code';
 
-        $terms = $query->orderBy($sortBy)->paginate($perPage)->withQueryString();
+    $terms = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
         return view('terms.index', compact('terms'));
     }
 

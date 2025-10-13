@@ -59,8 +59,47 @@
 
 @push('scripts')
 <script>
-function openSectionEdit(id,data){ const modal=document.getElementById('editSectionModal'); modal.style.display='flex'; modal.querySelector('[name="section_id"]').value=data.section_id; }
-function openSectionDelete(id){ const modal=document.getElementById('deleteSectionModal'); modal.style.display='flex'; modal.querySelector('[name="section_id"]').value=id; }
-document.getElementById('createForm')?.addEventListener('submit', function(e){ e.preventDefault(); const form=this; fetch(this.action,{method:'POST',headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}'},body:new FormData(this)}).then(r=>r.json()).then(resp=>{ handleResponse(resp,'createSectionModal'); });});
+function openSectionEdit(id,data){ const modal=document.getElementById('editSectionModal'); modal.style.display='flex'; modal.querySelector('[name="section_id"]').value=data.section_id; 
+    // populate other fields if present
+    modal.querySelector('[name="section_code"]').value = data.section_code || '';
+    modal.querySelector('[name="course_id"]').value = data.course_id || '';
+    modal.querySelector('[name="term_id"]').value = data.term_id || '';
+    modal.querySelector('[name="instructor_id"]').value = data.instructor_id || '';
+    modal.querySelector('[name="room_id"]').value = data.room_id || '';
+    modal.querySelector('[name="day_pattern"]').value = data.day_pattern || '';
+    modal.querySelector('[name="start_time"]').value = data.start_time || '';
+    modal.querySelector('[name="end_time"]').value = data.end_time || '';
+    modal.querySelector('[name="max_capacity"]').value = data.max_capacity || '';
+}
+function openSectionDelete(id){ const modal=document.getElementById('deleteSectionModal'); modal.style.display='flex'; document.getElementById('delete_section_id').value=id; }
+
+// Create handler
+document.getElementById('createForm')?.addEventListener('submit', function(e){
+    e.preventDefault(); const form=this;
+    fetch(this.action,{
+        method:'POST',
+        headers:{ 'X-CSRF-TOKEN':'{{ csrf_token() }}' },
+        body:new FormData(this)
+    }).then(r=>r.json()).then(resp=>{ handleResponse(resp,'createSectionModal'); }).catch(()=>{ showAlert('error', { title:'Error', detail:'Request failed' }); });
+});
+
+// Edit handler - send to /sections/{id} with PUT
+document.getElementById('editForm')?.addEventListener('submit', function(e){
+    e.preventDefault(); const id = this.querySelector('[name="section_id"]').value;
+    fetch('/sections/' + id, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'PUT' },
+        body: new FormData(this)
+    }).then(r=>r.json()).then(resp=>{ handleResponse(resp,'editSectionModal'); }).catch(()=>{ showAlert('error', { title:'Error', detail:'Request failed' }); });
+});
+
+// Delete handler - submit via fetch DELETE to /sections/{id}
+document.getElementById('deleteSectionForm')?.addEventListener('submit', function(e){
+    e.preventDefault(); const id = document.getElementById('delete_section_id').value;
+    fetch('/sections/' + id, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-HTTP-Method-Override': 'DELETE' }
+    }).then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteSectionModal'); }).catch(()=>{ showAlert('error', { title:'Error', detail:'Request failed' }); });
+});
 </script>
 @endpush

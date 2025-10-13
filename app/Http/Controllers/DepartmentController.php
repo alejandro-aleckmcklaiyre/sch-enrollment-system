@@ -103,11 +103,26 @@ class DepartmentController extends Controller
     {
         $dept = Department::findOrFail($id);
         try {
-            $dept->delete();
+            // Make dept_code unique before soft delete to avoid unique constraint error
+            $originalCode = (string) $dept->dept_code;
+            $suffix = '_deleted_' . time();
+            $maxLen = 20; // dept_code column is varchar(20)
+            if (strlen($originalCode) + strlen($suffix) > $maxLen) {
+                $trunc = substr($originalCode, 0, $maxLen - strlen($suffix));
+            } else {
+                $trunc = $originalCode;
+            }
+            $dept->dept_code = $trunc . $suffix;
+            $dept->is_deleted = 1;
+            $dept->save();
             return response()->json(['message' => 'Department deleted', 'op' => 'delete', 'success' => true]);
         } catch (\Exception $e) {
-            \Log::error('Department delete failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Department delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+            $msg = 'Department delete failed';
+            if ($e->getMessage()) {
+                $msg .= ': ' . $e->getMessage();
+            }
+            \Log::error($msg);
+            return response()->json(['message' => $msg, 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -124,7 +139,8 @@ class DepartmentController extends Controller
         $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
         if (!in_array($sortBy, $allowedSorts)) $sortBy = 'dept_name';
 
-        $items = $query->orderBy($sortBy, $sortDir)->get();
+    // enforce ascending export order
+    $items = $query->orderBy($sortBy, 'asc')->get();
 
         $filename = 'departments_' . date('Ymd_His') . '.csv';
         $headers = [
@@ -157,7 +173,8 @@ class DepartmentController extends Controller
         $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
         if (!in_array($sortBy, $allowedSorts)) $sortBy = 'dept_name';
 
-        $items = $query->orderBy($sortBy, $sortDir)->get();
+    // enforce ascending export order for PDF
+    $items = $query->orderBy($sortBy, 'asc')->get();
 
         $pdf = Pdf::loadView('departments.export_pdf', compact('items'));
         return $pdf->download('departments.pdf');

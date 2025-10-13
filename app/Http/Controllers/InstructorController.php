@@ -97,11 +97,26 @@ class InstructorController extends Controller
     {
         $instructor = Instructor::findOrFail($id);
         try {
-            $instructor->delete();
+            // Make email unique before soft delete to avoid unique constraint error
+            $originalEmail = (string) $instructor->email;
+            $suffix = '_deleted_' . time();
+            $maxLen = 100; // email column is varchar(100)
+            if (strlen($originalEmail) + strlen($suffix) > $maxLen) {
+                $trunc = substr($originalEmail, 0, $maxLen - strlen($suffix));
+            } else {
+                $trunc = $originalEmail;
+            }
+            $instructor->email = $trunc . $suffix;
+            $instructor->is_deleted = 1;
+            $instructor->save();
             return response()->json(['message' => 'Instructor deleted', 'op' => 'delete', 'success' => true]);
         } catch (\Exception $e) {
-            \Log::error('Instructor delete failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Instructor delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+            $msg = 'Instructor delete failed';
+            if ($e->getMessage()) {
+                $msg .= ': ' . $e->getMessage();
+            }
+            \Log::error($msg);
+            return response()->json(['message' => $msg, 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 

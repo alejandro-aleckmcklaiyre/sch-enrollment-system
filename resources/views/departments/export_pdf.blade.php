@@ -12,6 +12,8 @@
     </style>
 </head>
 <body>
+    @include('exports.partials.header')
+
     <h2>Departments</h2>
     <table>
         <thead>
@@ -27,5 +29,7 @@
         @endforeach
         </tbody>
     </table>
+
+    @include('exports.partials.footer')
 </body>
 </html>
