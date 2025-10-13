@@ -38,15 +38,18 @@ class RoomController extends Controller
 
         $validator = Validator::make($data, [
             'building' => 'nullable|string',
-            'room_code' => 'required|string|unique:tblroom,room_code',
+            'room_code' => [
+                'required','string',
+                \Illuminate\Validation\Rule::unique('tblroom','room_code')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'capacity' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-        // Duplicate check by room_code
-        if (!empty($data['room_code']) && Room::where('room_code', $data['room_code'])->exists()) {
+        // Duplicate check by room_code (ignore soft-deleted rows)
+        if (!empty($data['room_code']) && Room::where('room_code', $data['room_code'])->where('is_deleted', 0)->exists()) {
             return response()->json(['message' => 'A room with that code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
@@ -66,7 +69,10 @@ class RoomController extends Controller
 
         $validator = Validator::make($data, [
             'building' => 'nullable|string',
-            'room_code' => 'required|string|unique:tblroom,room_code,' . $room->room_id . ',room_id',
+            'room_code' => [
+                'required','string',
+                \Illuminate\Validation\Rule::unique('tblroom','room_code')->ignore($room->room_id,'room_id')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'capacity' => 'nullable|integer',
         ]);
 

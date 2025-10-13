@@ -42,7 +42,10 @@ class ProgramController extends Controller
         $data = $request->all();
 
         $validator = Validator::make($data, [
-            'program_code' => 'required|string|unique:tblprogram,program_code',
+            'program_code' => [
+                'required','string',
+                \Illuminate\Validation\Rule::unique('tblprogram','program_code')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'program_name' => 'required|string',
             'dept_id' => 'nullable|integer',
         ]);
@@ -51,8 +54,8 @@ class ProgramController extends Controller
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
 
-        // Duplicate check by program_code
-        if (!empty($data['program_code']) && Program::where('program_code', $data['program_code'])->exists()) {
+        // Duplicate check by program_code (ignore soft-deleted rows)
+        if (!empty($data['program_code']) && Program::where('program_code', $data['program_code'])->where('is_deleted', 0)->exists()) {
             return response()->json(['message' => 'A program with that code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
 
@@ -72,7 +75,10 @@ class ProgramController extends Controller
         $data = $request->all();
 
         $validator = Validator::make($data, [
-            'program_code' => 'required|string|unique:tblprogram,program_code,' . $program->program_id . ',program_id',
+            'program_code' => [
+                'required','string',
+                \Illuminate\Validation\Rule::unique('tblprogram','program_code')->ignore($program->program_id,'program_id')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'program_name' => 'required|string',
             'dept_id' => 'nullable|integer',
         ]);

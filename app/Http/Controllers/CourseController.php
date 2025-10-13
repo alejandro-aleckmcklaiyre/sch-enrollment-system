@@ -39,7 +39,10 @@ class CourseController extends Controller
         $data = $request->all();
 
         $validator = Validator::make($data, [
-            'course_code' => 'required|string|unique:tblcourse,course_code',
+            'course_code' => [
+                'required','string',
+                \Illuminate\Validation\Rule::unique('tblcourse','course_code')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'course_title' => 'required|string',
             'units' => 'nullable|integer',
             'lecture_hours' => 'nullable|integer',
@@ -50,8 +53,8 @@ class CourseController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-        // Duplicate check by course_code
-        if (!empty($data['course_code']) && Course::where('course_code', $data['course_code'])->exists()) {
+        // Duplicate check by course_code (ignore soft-deleted rows)
+        if (!empty($data['course_code']) && Course::where('course_code', $data['course_code'])->where('is_deleted', 0)->exists()) {
             return response()->json(['message' => 'A course with that course code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
@@ -70,7 +73,10 @@ class CourseController extends Controller
         $data = $request->all();
 
         $validator = Validator::make($data, [
-            'course_code' => 'required|string|unique:tblcourse,course_code,' . $course->course_id . ',course_id',
+            'course_code' => [
+                'required','string',
+                \Illuminate\Validation\Rule::unique('tblcourse','course_code')->ignore($course->course_id,'course_id')->where(function($q){ $q->where('is_deleted',0); }),
+            ],
             'course_title' => 'required|string',
             'units' => 'nullable|integer',
             'lecture_hours' => 'nullable|integer',

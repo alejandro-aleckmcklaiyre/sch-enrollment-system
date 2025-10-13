@@ -34,15 +34,7 @@
         </thead>
         <tbody>
             @foreach($departments as $d)
-                <tr>
-                    <td>{{ $d->dept_code }}</td>
-                    <td>{{ $d->dept_name }}</td>
-                        <td>{{ $d->dept_id }}</td>
-                    <td style="display:flex; gap:8px; justify-content:flex-start; align-items:center;">
-                        <button onclick="openDepartmentEdit({{ $d->dept_id }}, {{ json_encode($d) }})">Edit</button>
-                        <button onclick="openDepartmentDelete({{ $d->dept_id }})" class="btn-secondary">Delete</button>
-                    </td>
-                </tr>
+                @include('departments._row', ['dept' => $d])
             @endforeach
         </tbody>
     </table>
@@ -59,10 +51,18 @@
 <script>
     function openDepartmentEdit(id, data){
         const modal = document.getElementById('editDepartmentModal');
+        // try to read data from the table row if not passed
+        let rowData = data || null;
+        if(!rowData){
+            const row = document.querySelector('tr[data-dept-id="' + id + '"]');
+            if(row && row.dataset && row.dataset.dept){
+                try{ rowData = JSON.parse(row.dataset.dept); }catch(e){ rowData = null; }
+            }
+        }
         modal.style.display='flex';
-        modal.querySelector('[name="id"]').value = data.dept_id;
-        modal.querySelector('[name="dept_code"]').value = data.dept_code || '';
-        modal.querySelector('[name="dept_name"]').value = data.dept_name || '';
+        modal.querySelector('[name="id"]').value = rowData?.dept_id || id;
+        modal.querySelector('[name="dept_code"]').value = rowData?.dept_code || '';
+        modal.querySelector('[name="dept_name"]').value = rowData?.dept_name || '';
     }
 
     function openDepartmentDelete(id){
@@ -71,25 +71,32 @@
         modal.querySelector('[name="id"]').value = id;
     }
 
-    document.getElementById('createForm').addEventListener('submit', function(e){
-        e.preventDefault();
-        const form = e.target;
-        fetch(form.action || '/departments', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createDepartmentModal'); });
-    });
-
-    document.getElementById('editForm').addEventListener('submit', function(e){
-        e.preventDefault();
-        const id = e.target.id.value;
-        fetch('/departments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editDepartmentModal'); });
-    });
-
-    document.getElementById('deleteForm').addEventListener('submit', function(e){
-        e.preventDefault();
-        const id = e.target.id.value;
-        fetch('/departments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteDepartmentModal'); });
+    // Create/Edit/Delete form handlers are bound inside the modals partial to ensure a single source of truth.
+    // Attach click handlers to action buttons after DOM ready to ensure each button reliably opens the modals
+    document.addEventListener('DOMContentLoaded', function(){
+        document.querySelectorAll('button[data-action="edit"]').forEach(function(btn){
+            btn.addEventListener('click', function(e){
+                const id = btn.getAttribute('data-id');
+                const row = document.querySelector('tr[data-dept-id="' + id + '"]');
+                let rowData = null;
+                if(row && row.dataset && row.dataset.dept){
+                    try{ rowData = JSON.parse(row.dataset.dept); }catch(e){ rowData = null; }
+                }
+                const modal = document.getElementById('editDepartmentModal');
+                modal.style.display='flex';
+                modal.querySelector('[name="id"]').value = rowData?.dept_id || id;
+                modal.querySelector('[name="dept_code"]').value = rowData?.dept_code || '';
+                modal.querySelector('[name="dept_name"]').value = rowData?.dept_name || '';
+            });
+        });
+        document.querySelectorAll('button[data-action="delete"]').forEach(function(btn){
+            btn.addEventListener('click', function(e){
+                const id = btn.getAttribute('data-id');
+                const modal = document.getElementById('deleteDepartmentModal');
+                modal.style.display='flex';
+                modal.querySelector('[name="id"]').value = id;
+            });
+        });
     });
 </script>
 @endpush

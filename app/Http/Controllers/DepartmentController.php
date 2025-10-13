@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -35,21 +36,36 @@ class DepartmentController extends Controller
         $data = $request->only(['dept_code','dept_name']);
 
         $validator = Validator::make($data, [
-            'dept_code' => 'required|string|max:20|unique:tbldepartment,dept_code',
+            'dept_code' => [
+                'required','string','max:20',
+                // unique only among non-deleted records so soft-deleted codes can be reused
+                \Illuminate\Validation\Rule::unique('tbldepartment','dept_code')->where(function($query){
+                    $query->where('is_deleted', 0);
+                }),
+            ],
             'dept_name' => 'required|string|max:100',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-        // Duplicate check by dept_code
-        if (!empty($data['dept_code']) && Department::where('dept_code', $data['dept_code'])->exists()) {
+        // Duplicate check by dept_code among non-deleted records
+        if (!empty($data['dept_code']) && Department::where('dept_code', $data['dept_code'])->where('is_deleted', 0)->exists()) {
             return response()->json(['message' => 'A department with that code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
             $dept = Department::create($data);
             \Log::info('Department created: ' . $dept->dept_id);
-            return response()->json(['message' => 'Department created', 'op' => 'add', 'success' => true, 'data' => $dept]);
+            // Try to render a single-row partial so the frontend can insert it; if rendering fails, log and return success without row_html
+            $rowHtml = null;
+            try{
+                $rowHtml = view('departments._row', ['dept' => $dept])->render();
+            } catch (\Throwable $e) {
+                \Log::error('Failed to render department row partial: ' . $e->getMessage());
+            }
+            $payload = ['message' => 'Department created', 'op' => 'add', 'success' => true, 'data' => $dept];
+            if($rowHtml) $payload['row_html'] = $rowHtml;
+            return response()->json($payload);
         } catch (\Exception $e) {
             \Log::error('Department create failed: ' . $e->getMessage());
             return response()->json(['message' => 'Department create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()], 500);
@@ -62,7 +78,12 @@ class DepartmentController extends Controller
         $data = $request->only(['dept_code','dept_name']);
 
         $validator = Validator::make($data, [
-            'dept_code' => 'required|string|max:20|unique:tbldepartment,dept_code,' . $dept->dept_id . ',dept_id',
+            'dept_code' => [
+                'required','string','max:20',
+                \Illuminate\Validation\Rule::unique('tbldepartment','dept_code')->ignore($dept->dept_id, 'dept_id')->where(function($query){
+                    $query->where('is_deleted', 0);
+                }),
+            ],
             'dept_name' => 'required|string|max:100',
         ]);
 

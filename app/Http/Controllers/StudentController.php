@@ -66,11 +66,18 @@ class StudentController extends Controller
         $data = $request->only(['student_no','last_name','first_name','middle_name','email','gender','birthdate','year_level','program_id']);
 
         $validator = Validator::make($data, [
-            'student_no' => 'required|unique:tblstudent,student_no',
+            'student_no' => [
+                'required',
+                \Illuminate\Validation\Rule::unique('tblstudent', 'student_no')->where(function ($query) { $query->where('is_deleted', 0); }),
+            ],
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'middle_name' => 'nullable|string',
-            'email' => 'nullable|email|unique:tblstudent,email',
+            'email' => [
+                'nullable',
+                'email',
+                \Illuminate\Validation\Rule::unique('tblstudent', 'email')->where(function ($query) { $query->where('is_deleted', 0); }),
+            ],
             'gender' => 'nullable|in:M,F',
             'birthdate' => 'nullable|date',
             'year_level' => 'nullable|integer',
@@ -81,8 +88,8 @@ class StudentController extends Controller
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
 
-        // Duplicate check by student_no
-        if (!empty($data['student_no']) && Student::where('student_no', $data['student_no'])->exists()) {
+        // Duplicate check by student_no (ignore soft-deleted rows)
+        if (!empty($data['student_no']) && Student::where('student_no', $data['student_no'])->where('is_deleted', 0)->exists()) {
             return response()->json(['message' => 'A student with that student number already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
@@ -102,11 +109,18 @@ class StudentController extends Controller
         $data = $request->only(['student_no','last_name','first_name','middle_name','email','gender','birthdate','year_level','program_id']);
 
         $validator = Validator::make($data, [
-            'student_no' => 'required|unique:tblstudent,student_no,' . $student->student_id . ',student_id',
+            'student_no' => [
+                'required',
+                \Illuminate\Validation\Rule::unique('tblstudent', 'student_no')->ignore($student->student_id, 'student_id')->where(function ($query) { $query->where('is_deleted', 0); }),
+            ],
             'last_name' => 'required|string',
             'first_name' => 'required|string',
             'middle_name' => 'nullable|string',
-            'email' => 'nullable|email|unique:tblstudent,email,' . $student->student_id . ',student_id',
+            'email' => [
+                'nullable',
+                'email',
+                \Illuminate\Validation\Rule::unique('tblstudent', 'email')->ignore($student->student_id, 'student_id')->where(function ($query) { $query->where('is_deleted', 0); }),
+            ],
             'gender' => 'nullable|in:M,F',
             'birthdate' => 'nullable|date',
             'year_level' => 'nullable|integer',
