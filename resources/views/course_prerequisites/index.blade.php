@@ -3,25 +3,52 @@
 @section('title','Course Prerequisites')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createPrereqModal')">Manage</button>
-        <form method="GET" action="{{ url('course-prerequisites') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('course-prerequisites/export-excel') }}" style="display:inline">@csrf
-            <input type="hidden" name="search" value="{{ request('search') }}"><button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('course-prerequisites/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="search" value="{{ request('search') }}"><button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
+                    @endif
+                @endforeach
+                @foreach(request()->except(['page','sort_by','sort_dir']) as $k => $v)
+                    @if(is_array($v))
+                        @foreach($v as $item)
+                <select name="sort_by" class="form-control">
+                    <option value="course_id" {{ request('sort_by')=='course_id' ? 'selected' : '' }}>Course</option>
+                    <option value="prereq_course_id" {{ request('sort_by')=='prereq_course_id' ? 'selected' : '' }}>Prerequisite</option>
+                </select>
+                <select name="sort_dir" class="form-control">
+                    <option value="desc" {{ request('sort_dir','desc')=='desc' ? 'selected' : '' }}>DESC</option>
+                    <option value="asc" {{ request('sort_dir')=='asc' ? 'selected' : '' }}>ASC</option>
+                </select>
+                <button type="submit" class="btn btn-secondary">Sort</button>
+            </form>
+
+            <form method="POST" action="{{ url('course-prerequisites/export-excel') }}" style="display:inline">@csrf
+                <input type="hidden" name="search" value="{{ request('search') }}"><button>Export CSV</button>
+            </form>
+            <form method="GET" action="{{ url('course-prerequisites/export-pdf') }}" style="display:inline">
+                <input type="hidden" name="search" value="{{ request('search') }}"><button type="submit" class="btn-secondary">Export PDF</button>
+            </form>
+        </div>
     </div>
+    @include('partials.table-header', [
+        'listUrl' => url('course-prerequisites'),
+        'exportExcelUrl' => url('course-prerequisites/export-excel'),
+        'exportPdfUrl' => url('course-prerequisites/export-pdf'),
+        'manageModalId' => 'createPrereqModal',
+        'filterModalId' => 'filterPrereqModal',
+        'sortFields' => [
+            ['value' => 'course_id', 'label' => 'Course'],
+            ['value' => 'prereq_course_id', 'label' => 'Prerequisite'],
+        ]
+    ])
+    @endsection
 @endsection
 
 @section('content')
     <table>
         <thead>
-            <tr><th>Course</th><th>Prerequisite</th><th style="text-align:left">Actions</th></tr>
+            <tr>
+                <th>@include('partials._sortable_header', ['label'=>'Course','field'=>'course_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Prerequisite','field'=>'prereq_course_id'])</th>
+                <th style="text-align:left">Actions</th>
+            </tr>
         </thead>
         <tbody>
             @foreach($prereqs as $p)

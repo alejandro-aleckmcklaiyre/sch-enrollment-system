@@ -3,50 +3,43 @@
 @section('title','Courses')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createCourseModal')">Manage</button>
-        <form method="GET" action="{{ url('courses') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <select name="dept_id">
-                <option value="">All Departments</option>
-                @foreach($departments as $d)
-                    <option value="{{ $d->dept_id }}" {{ request('dept_id') == $d->dept_id ? 'selected' : '' }}>{{ $d->dept_name }}</option>
-                @endforeach
-            </select>
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('courses/export-excel') }}" style="display:inline">
-            @csrf
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="dept_id" value="{{ request('dept_id') }}">
-            <button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('courses/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="dept_id" value="{{ request('dept_id') }}">
-            <button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('courses'),
+        'exportExcelUrl' => url('courses/export-excel'),
+        'exportPdfUrl' => url('courses/export-pdf'),
+        'manageModalId' => 'createCourseModal',
+        'filterModalId' => 'filterCourseModal'
+    ])
 @endsection
 
 @section('content')
+    @include('partials.table-controls', [
+        'listUrl' => url('courses'),
+        'sortFields' => [
+            ['value' => 'course_id', 'label' => 'ID'],
+            ['value' => 'course_code', 'label' => 'Course Code'],
+            ['value' => 'course_title', 'label' => 'Course Title'],
+        ],
+        'filterModalId' => 'filterCourseModal'
+    ])
+
     <table>
         <thead>
             <tr>
-                <th>Course Code</th>
-                <th>Course Title</th>
-                <th>Units</th>
+                <th>@include('partials._sortable_header', ['label'=>'ID','field'=>'course_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Course Code','field'=>'course_code'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Course Title','field'=>'course_title'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Units','field'=>'units'])</th>
                 <th>Lecture Hrs</th>
                 <th>Lab Hrs</th>
-                <th>Department</th>
+                <th>@include('partials._sortable_header', ['label'=>'Department','field'=>'dept_id'])</th>
                 <th style="text-align:left">Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach($courses as $c)
                 <tr>
+                    <td>{{ $c->course_id }}</td>
                     <td>{{ $c->course_code }}</td>
                     <td>{{ $c->course_title }}</td>
                     <td>{{ $c->units }}</td>
@@ -94,21 +87,21 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('createCourseModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createCourseModal'); });
     });
 
     document.getElementById('editCourseForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.course_id.value;
         fetch('/courses/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('editCourseModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editCourseModal'); });
     });
 
     document.getElementById('deleteCourseForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.course_id.value;
         fetch('/courses/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('deleteCourseModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteCourseModal'); });
     });
 </script>
 @endpush

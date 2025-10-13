@@ -91,3 +91,42 @@
         </form>
     </div>
 </div>
+
+<div id="filterModal" class="modal">
+    <div class="box">
+        <h3>Filter Students</h3>
+        <form id="filterForm" method="GET" action="{{ url('students') }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+                <select name="year_level">
+                    <option value="">All Years</option>
+                    @for($i=1;$i<=5;$i++)
+                        <option value="{{ $i }}" {{ request('year_level') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                    @endfor
+                </select>
+
+                <select name="gender">
+                    <option value="">All Genders</option>
+                    <option value="M" {{ request('gender') == 'M' ? 'selected' : '' }}>M</option>
+                    <option value="F" {{ request('gender') == 'F' ? 'selected' : '' }}>F</option>
+                </select>
+
+                <select name="program_id" style="grid-column:1 / -1">
+                    <option value="">All Programs</option>
+                    @foreach($programs as $prog)
+                        <option value="{{ $prog->program_id }}" {{ request('program_id') == $prog->program_id ? 'selected' : '' }}>{{ $prog->program_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- preserve search and sort when applying filters --}}
+            <input type="hidden" name="search" value="{{ request('search') }}">
+            <input type="hidden" name="sort_by" value="{{ request('sort_by') }}">
+            <input type="hidden" name="sort_dir" value="{{ request('sort_dir') }}">
+
+            <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+                <button type="button" onclick="closeModal('filterModal')" class="btn-secondary">Cancel</button>
+                <button type="submit">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>

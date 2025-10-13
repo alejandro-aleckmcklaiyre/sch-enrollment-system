@@ -16,6 +16,11 @@ class EnrollmentController extends Controller
         $perPage = (int) $request->query('per_page', 15);
         $query = Enrollment::with('student');
 
+        $allowedSorts = ['enrollment_id','date_enrolled','status'];
+        $sortBy = $request->input('sort_by', 'date_enrolled');
+        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'date_enrolled';
+
         if ($search = $request->query('search')) {
             $query->whereHas('student', function($q) use ($search) {
                 $q->where('last_name', 'like', "%{$search}%")
@@ -28,7 +33,7 @@ class EnrollmentController extends Controller
             $query->where('status', $status);
         }
 
-        $enrollments = $query->orderBy('date_enrolled', 'desc')->paginate($perPage)->withQueryString();
+    $enrollments = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
 
         $students = Student::orderBy('last_name')->get();
 
@@ -47,12 +52,15 @@ class EnrollmentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
-
-        Enrollment::create($data);
-
-        return response()->json(['message' => 'Enrollment created']);
+        try {
+            $en = Enrollment::create($data);
+            return response()->json(['message' => 'Enrollment created', 'op' => 'add', 'success' => true, 'data' => $en]);
+        } catch (\Exception $e) {
+            \Log::error('Enrollment create failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Enrollment create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function update(Request $request, $id)
@@ -68,20 +76,27 @@ class EnrollmentController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'op' => 'update', 'success' => false], 422);
         }
-
-        $en->update($data);
-
-        return response()->json(['message' => 'Enrollment updated']);
+        try {
+            $en->update($data);
+            return response()->json(['message' => 'Enrollment updated', 'op' => 'update', 'success' => true, 'data' => $en]);
+        } catch (\Exception $e) {
+            \Log::error('Enrollment update failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Enrollment update failed', 'op' => 'update', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function destroy($id)
     {
         $en = Enrollment::findOrFail($id);
-        $en->delete();
-
-        return response()->json(['message' => 'Enrollment deleted']);
+        try {
+            $en->delete();
+            return response()->json(['message' => 'Enrollment deleted', 'op' => 'delete', 'success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Enrollment delete failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Enrollment delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function exportExcel(Request $request)
@@ -90,6 +105,12 @@ class EnrollmentController extends Controller
         // support both GET and POST filter inputs
         $search = $request->input('search', $request->query('search'));
         $status = $request->input('status', $request->query('status'));
+
+        // sorting
+        $allowedSorts = ['enrollment_id','date_enrolled','status'];
+        $sortBy = $request->input('sort_by', 'date_enrolled');
+        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'date_enrolled';
 
         if ($search) {
             $query->whereHas('student', function($q) use ($search) {
@@ -103,7 +124,7 @@ class EnrollmentController extends Controller
             $query->where('status', $status);
         }
 
-        $items = $query->orderBy('date_enrolled', 'desc')->get();
+    $items = $query->orderBy($sortBy, $sortDir)->get();
 
         $filename = 'enrollments_' . date('Ymd_His') . '.csv';
         $headers = [

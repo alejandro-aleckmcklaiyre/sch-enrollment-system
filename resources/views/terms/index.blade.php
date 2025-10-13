@@ -3,29 +3,40 @@
 @section('title','Terms')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createTermModal')">Manage</button>
-        <form method="GET" action="{{ url('terms') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('terms/export-excel') }}" style="display:inline">@csrf
-            <input type="hidden" name="search" value="{{ request('search') }}"><button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('terms/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="search" value="{{ request('search') }}"><button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('terms'),
+        'exportExcelUrl' => url('terms/export-excel'),
+        'exportPdfUrl' => url('terms/export-pdf'),
+        'manageModalId' => 'createTermModal',
+        'filterModalId' => 'filterTermModal'
+    ])
 @endsection
 
 @section('content')
+    @include('partials.table-controls', [
+        'listUrl' => url('terms'),
+        'sortFields' => [
+            ['value' => 'term_id', 'label' => 'ID'],
+            ['value' => 'term_code', 'label' => 'Term Code'],
+            ['value' => 'start_date', 'label' => 'Start'],
+        ],
+        'filterModalId' => 'filterTermModal'
+    ])
+
     <table>
         <thead>
-            <tr><th>Term Code</th><th>Start</th><th>End</th><th style="text-align:left">Actions</th></tr>
+            <tr>
+                <th>@include('partials._sortable_header', ['label'=>'ID','field'=>'term_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Term Code','field'=>'term_code'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Start','field'=>'start_date'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'End','field'=>'end_date'])</th>
+                <th style="text-align:left">Actions</th>
+            </tr>
         </thead>
         <tbody>
             @foreach($terms as $t)
                 <tr>
+                    <td>{{ $t->term_id }}</td>
                     <td>{{ $t->term_code }}</td>
                     <td>{{ $t->start_date }}</td>
                     <td>{{ $t->end_date }}</td>

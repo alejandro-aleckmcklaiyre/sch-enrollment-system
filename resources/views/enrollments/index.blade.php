@@ -3,40 +3,34 @@
 @section('title','Enrollments')
 
 @section('toolbar')
-    <div class="toolbar">
-        <button onclick="openModal('createEnrollmentModal')">Manage</button>
-        <form method="GET" action="{{ url('enrollments') }}" style="display:flex; gap:8px; align-items:center">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search...">
-            <select name="status">
-                <option value="">All Statuses</option>
-                <option value="enrolled" {{ request('status')=='enrolled'? 'selected':'' }}>Enrolled</option>
-                <option value="dropped" {{ request('status')=='dropped'? 'selected':'' }}>Dropped</option>
-            </select>
-            <button type="submit" class="btn-secondary">Filter</button>
-        </form>
-        <form method="POST" action="{{ url('enrollments/export-excel') }}" style="display:inline">
-            @csrf
-            <input type="hidden" name="filtered" value="1">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="status" value="{{ request('status') }}">
-            <button>Export CSV</button>
-        </form>
-        <form method="GET" action="{{ url('enrollments/export-pdf') }}" style="display:inline">
-            <input type="hidden" name="search" value="{{ request('search') }}">
-            <input type="hidden" name="status" value="{{ request('status') }}">
-            <button type="submit" class="btn-secondary">Export PDF</button>
-        </form>
-    </div>
+    @include('partials.table-toolbar', [
+        'listUrl' => url('enrollments'),
+        'exportExcelUrl' => url('enrollments/export-excel'),
+        'exportPdfUrl' => url('enrollments/export-pdf'),
+        'manageModalId' => 'createEnrollmentModal',
+        'filterModalId' => 'filterEnrollmentModal'
+    ])
 @endsection
 
 @section('content')
+    @include('partials.table-controls', [
+        'listUrl' => url('enrollments'),
+        'sortFields' => [
+            ['value' => 'enrollment_id', 'label' => 'ID'],
+            ['value' => 'student_id', 'label' => 'Student'],
+            ['value' => 'date_enrolled', 'label' => 'Date Enrolled'],
+        ],
+        'filterModalId' => 'filterEnrollmentModal'
+    ])
+
     <table>
         <thead>
             <tr>
-                <th>Student</th>
-                <th>Section</th>
-                <th>Date Enrolled</th>
-                <th>Status</th>
+                <th>@include('partials._sortable_header', ['label'=>'ID','field'=>'enrollment_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Student','field'=>'student_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Section','field'=>'section_id'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Date Enrolled','field'=>'date_enrolled'])</th>
+                <th>@include('partials._sortable_header', ['label'=>'Status','field'=>'status'])</th>
                 <th>Grade</th>
                 <th style="text-align:left">Actions</th>
             </tr>
@@ -44,6 +38,7 @@
         <tbody>
             @foreach($enrollments as $e)
                 <tr>
+                    <td>{{ $e->enrollment_id }}</td>
                     <td>{{ optional($e->student)->student_no }} - {{ optional($e->student)->last_name }}</td>
                     <td>{{ $e->section_id }}</td>
                     <td>{{ $e->date_enrolled }}</td>
@@ -89,21 +84,21 @@
         e.preventDefault();
         const form = e.target;
         fetch(form.action || '/enrollments', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('createEnrollmentModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createEnrollmentModal'); });
     });
 
     document.getElementById('editForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.id.value;
         fetch('/enrollments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(e.target)})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('editEnrollmentModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editEnrollmentModal'); });
     });
 
     document.getElementById('deleteForm').addEventListener('submit', function(e){
         e.preventDefault();
         const id = e.target.id.value;
         fetch('/enrollments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
-        .then(r=>r.json()).then(resp=>{ if(resp && resp.message){ closeModal('deleteEnrollmentModal'); location.reload(); } else console.error(resp);});
+    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteEnrollmentModal'); });
     });
 </script>
 @endpush
