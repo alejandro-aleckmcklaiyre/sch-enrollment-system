@@ -9,17 +9,24 @@
         table{width:100%; border-collapse:collapse}
         th,td{padding:8px; border:1px solid #ddd; text-align:left}
         th{background:#f5f0ea}
+        .export-header{ margin-bottom:8px }
     </style>
 </head>
 <body>
-<h2>Terms</h2>
-<table>
-    <thead><tr><th>Term Code</th><th>Start Date</th><th>End Date</th></tr></thead>
-    <tbody>
-    @foreach($terms as $t)
-        <tr><td>{{ $t->term_code }}</td><td>{{ $t->start_date }}</td><td>{{ $t->end_date }}</td></tr>
-    @endforeach
-    </tbody>
-</table>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
+    <h2>Term Records</h2>
+
+    @include('components.export_table', [
+        'headers' => ['Term Code', 'Start Date', 'End Date'],
+        'rows' => $terms,
+        'columns' => [
+            'term_code',
+            'start_date',
+            'end_date'
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

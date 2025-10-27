@@ -6,9 +6,11 @@ use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
 
 class RoomController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $query = Room::query();
@@ -25,11 +27,23 @@ class RoomController extends Controller
             });
         }
 
+        // Add building filter
+        if ($building = $request->input('building')) {
+            $query->where('building', $building);
+        }
+
         $perPage = $request->input('per_page', 15);
 
-    $rooms = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
+        // Get unique buildings for filter dropdown
+        $buildings = Room::where('is_deleted', 0)
+            ->whereNotNull('building')
+            ->distinct()
+            ->orderBy('building')
+            ->pluck('building');
 
-        return view('rooms.index', compact('rooms'));
+        $rooms = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
+
+        return view('rooms.index', compact('rooms', 'buildings'));
     }
 
     public function store(Request $request)
@@ -119,24 +133,31 @@ class RoomController extends Controller
             });
         }
 
-    $rooms = $filtered ? $query->orderBy($sortBy,$sortDir)->get() : Room::orderBy($sortBy,$sortDir)->get();
+    // enforce ascending export order
+    $rooms = $filtered ? $query->orderBy($sortBy,'asc')->get() : Room::orderBy($sortBy,'asc')->get();
+        try {
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\RoomExport($rooms);
+                return \Maatwebsite\Excel\Facades\Excel::download($export, $this->getExportFilename('rooms', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Room Excel export failed, falling back to CSV: ' . $e->getMessage());
+        }
 
-        $filename = 'rooms.csv';
+        // Fallback to CSV
         $headers = ['ID','Building','Room Code','Capacity'];
-
-        $callback = function() use ($rooms, $headers) {
-            $file = fopen('php://output', 'w');
+        
+        return $this->downloadCsv('rooms', function($file) use ($rooms, $headers) {
             fputcsv($file, $headers);
             foreach ($rooms as $r) {
-                fputcsv($file, [$r->room_id, $r->building, $r->room_code, $r->capacity]);
+                fputcsv($file, [
+                    $r->room_id,
+                    $r->building,
+                    $r->room_code,
+                    $r->capacity
+                ]);
             }
-            fclose($file);
-        };
-
-        return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        }, 'Room Records');
     }
 
     public function exportPDF(Request $request)
@@ -152,10 +173,18 @@ class RoomController extends Controller
             });
         }
 
-        $rooms = $filtered ? $query->orderBy('room_id','desc')->get() : Room::orderBy('room_id','desc')->get();
+        $rooms = $filtered ? $query->orderBy('room_id', 'asc')->get() : Room::orderBy('room_id', 'asc')->get();
 
-        $pdf = Pdf::loadView('rooms.export_pdf', ['rooms' => $rooms]);
+        // Load PDF view and apply standard footer
+        $pdf = Pdf::loadView('rooms.export_pdf', [
+            'rooms' => $rooms,
+            'logoDataUri' => $this->getLogoDataUri()
+        ]);
 
-        return $pdf->download('rooms.pdf');
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+
+        // Download with standardized filename
+        return $pdf->download($this->getExportFilename('rooms', 'pdf'));
     }
 }

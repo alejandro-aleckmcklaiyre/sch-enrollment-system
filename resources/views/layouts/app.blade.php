@@ -122,6 +122,14 @@
         fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: JSON.stringify(data)})
         .then(r=>r.json()).then(cb).catch(e=>console.error(e));
     }
+    // Helper used by many modals to run fetch and forward http status + json to handleResponse
+    function submitFormWithStatus(fetchPromise, modalId){
+        fetchPromise.then(async (res)=>{
+            let body = {};
+            try{ body = await res.json(); } catch(e){ body = { message: 'No response body' }; }
+            body.httpStatus = res.status; handleResponse(body, modalId);
+        }).catch(e=>{ console.error(e); handleResponse({ message: 'Network error', success:false, error:true, httpStatus:0 }, modalId); });
+    }
     // Alerts: show dismissible message near top of content without forcing a full reload
     function showAlert(type, payload, opts={}){
         // payload: { title: '', detail: '' }

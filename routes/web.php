@@ -87,7 +87,7 @@ Route::resource('terms', TermController::class)->only(['index','store','update',
 Route::post('terms/export-excel', [TermController::class, 'exportExcel'])->name('terms.exportExcel');
 Route::get('terms/export-pdf', [TermController::class, 'exportPDF'])->name('terms.exportPDF');
 
-Route::resource('course-prerequisites', CoursePrerequisiteController::class)->only(['index','store','destroy']);
+Route::resource('course-prerequisites', CoursePrerequisiteController::class)->only(['index','store','update','destroy']);
 Route::post('course-prerequisites/export-excel', [CoursePrerequisiteController::class, 'exportExcel'])->name('courseprereqs.exportExcel');
 Route::get('course-prerequisites/export-pdf', [CoursePrerequisiteController::class, 'exportPDF'])->name('courseprereqs.exportPDF');
 

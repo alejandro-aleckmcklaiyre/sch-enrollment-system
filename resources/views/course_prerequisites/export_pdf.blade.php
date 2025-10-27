@@ -12,14 +12,19 @@
     </style>
 </head>
 <body>
-<h2>Course Prerequisites</h2>
-<table>
-    <thead><tr><th>Course</th><th>Prerequisite</th></tr></thead>
-    <tbody>
-    @foreach($prereqs as $p)
-        <tr><td>{{ optional($p->course)->course_code }}</td><td>{{ optional($p->prereq)->course_code }}</td></tr>
-    @endforeach
-    </tbody>
-</table>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
+    <h2>Course Prerequisites</h2>
+
+    @include('components.export_table', [
+        'headers' => ['Course', 'Prerequisite'],
+        'rows' => $prereqs,
+        'columns' => [
+            ['relation' => 'course', 'field' => 'course_code'],
+            ['relation' => 'prereq', 'field' => 'course_code']
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

@@ -12,28 +12,22 @@
     </style>
 </head>
 <body>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
     <h2>Instructors</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Last Name</th>
-                <th>First Name</th>
-                <th>Email</th>
-                <th>Department</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($instructors as $i)
-                <tr>
-                    <td>{{ $i->instructor_id }}</td>
-                    <td>{{ $i->last_name }}</td>
-                    <td>{{ $i->first_name }}</td>
-                    <td>{{ $i->email }}</td>
-                    <td>{{ optional($i->department)->dept_name ?? $i->dept_id }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+
+    @include('components.export_table', [
+        'headers' => ['ID', 'Last Name', 'First Name', 'Email', 'Department'],
+        'rows' => $instructors,
+        'columns' => [
+            'instructor_id',
+            'last_name',
+            'first_name',
+            'email',
+            ['callback' => function($i) { return optional($i->department)->dept_name ?? $i->dept_id; }]
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

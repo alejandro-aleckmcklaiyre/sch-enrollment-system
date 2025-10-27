@@ -6,9 +6,12 @@ use App\Models\Term;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Traits\HandlesExports;
 
 class TermController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -20,7 +23,7 @@ class TermController extends Controller
         $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
         if (!in_array($sortBy, $allowedSorts)) $sortBy = 'term_code';
 
-        $terms = $query->orderBy($sortBy)->paginate($perPage)->withQueryString();
+    $terms = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
         return view('terms.index', compact('terms'));
     }
 
@@ -70,24 +73,33 @@ class TermController extends Controller
         $query = Term::query();
         $search = $request->input('search', $request->query('search'));
         if($search) $query->where('term_code','like',"%{$search}%");
-        $items = $query->orderBy('term_code')->get();
+        
+        // Get filtered records
+        $items = $this->getFilteredRecordsForExport($request, $query, Term::class, 'term_code');
 
-        $filename = 'terms_' . date('Ymd_His') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function() use ($items) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['Term Code','Start Date','End Date']);
-            foreach ($items as $i) {
-                fputcsv($out, [$i->term_code, $i->start_date, $i->end_date]);
+        try {
+            // Try to use Maatwebsite Excel export
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\TermExport($items);
+                return Excel::download($export, $this->getExportFilename('terms', 'xlsx'));
             }
-            fclose($out);
-        };
+        } catch (\Throwable $e) {
+            \Log::warning('Excel export failed, falling back to CSV: ' . $e->getMessage());
+        }
 
-        return response()->stream($callback, 200, $headers);
+        // Fallback to CSV
+        $headers = ['Term Code','Start Date','End Date'];
+        
+        return $this->downloadCsv('terms', function($file) use ($items, $headers) {
+            fputcsv($file, $headers);
+            foreach ($items as $i) {
+                fputcsv($file, [
+                    $i->term_code, 
+                    $i->start_date, 
+                    $i->end_date
+                ]);
+            }
+        }, 'Term Records');
     }
 
     public function exportPDF(Request $request)
@@ -96,7 +108,29 @@ class TermController extends Controller
         $search = $request->input('search', $request->query('search'));
         if($search) $query->where('term_code','like',"%{$search}%");
         $terms = $query->orderBy('term_code')->get();
-        $pdf = Pdf::loadView('terms.export_pdf', compact('terms'));
-        return $pdf->download('terms.pdf');
+    // prepare logo
+    $logoDataUri = null;
+    $logoPath = public_path('images/pup_logo.jpg');
+    if (file_exists($logoPath)) {
+        try {
+            if (@getimagesize($logoPath) !== false && filesize($logoPath) > 512) {
+                $mime = mime_content_type($logoPath) ?: 'image/jpeg';
+                $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+            } else {
+                \Log::warning('terms.exportPDF: logo invalid or too small: ' . $logoPath);
+            }
+        } catch (\Throwable $ex) {
+            \Log::warning('terms.exportPDF: failed to build logo data uri: ' . $ex->getMessage());
+        }
+    }
+
+    // Load PDF view and apply standard footer
+    $pdf = Pdf::loadView('terms.export_pdf', compact('terms') + ['logoDataUri' => $this->getLogoDataUri()]);
+
+    // Apply standard footer with page numbers
+    $this->applyPdfFooter($pdf);
+
+    // Download with standardized filename
+    return $pdf->download($this->getExportFilename('terms', 'pdf'));
     }
 }

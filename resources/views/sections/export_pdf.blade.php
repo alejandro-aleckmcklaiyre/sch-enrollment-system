@@ -12,23 +12,23 @@
     </style>
 </head>
 <body>
-<h2>Sections</h2>
-<table>
-    <thead>
-    <tr><th>Section Code</th><th>Course</th><th>Term</th><th>Instructor</th><th>Room</th><th>Max Capacity</th></tr>
-    </thead>
-    <tbody>
-    @foreach($sections as $s)
-        <tr>
-            <td>{{ $s->section_code }}</td>
-            <td>{{ optional($s->course)->course_code }}</td>
-            <td>{{ optional($s->term)->term_code }}</td>
-            <td>{{ optional($s->instructor)->last_name }}</td>
-            <td>{{ optional($s->room)->room_code }}</td>
-            <td>{{ $s->max_capacity }}</td>
-        </tr>
-    @endforeach
-    </tbody>
-</table>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
+    <h2>Sections</h2>
+
+    @include('components.export_table', [
+        'headers' => ['Section Code', 'Course', 'Term', 'Instructor', 'Room', 'Max Capacity'],
+        'rows' => $sections,
+        'columns' => [
+            'section_code',
+            ['relation' => 'course', 'field' => 'course_code'],
+            ['relation' => 'term', 'field' => 'term_code'],
+            ['relation' => 'instructor', 'field' => 'last_name'],
+            ['relation' => 'room', 'field' => 'room_code'],
+            'max_capacity'
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

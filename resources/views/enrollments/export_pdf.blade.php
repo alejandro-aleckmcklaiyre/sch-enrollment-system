@@ -12,23 +12,23 @@
     </style>
 </head>
 <body>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
     <h2>Enrollments</h2>
-    <table>
-        <thead>
-            <tr><th>ID</th><th>Student</th><th>Section</th><th>Date</th><th>Status</th><th>Grade</th></tr>
-        </thead>
-        <tbody>
-        @foreach($items as $i)
-            <tr>
-                <td>{{ $i->enrollment_id }}</td>
-                <td>{{ optional($i->student)->student_no }} - {{ optional($i->student)->last_name }}</td>
-                <td>{{ $i->section_id }}</td>
-                <td>{{ $i->date_enrolled }}</td>
-                <td>{{ $i->status }}</td>
-                <td>{{ $i->letter_grade }}</td>
-            </tr>
-        @endforeach
-        </tbody>
-    </table>
+
+    @include('components.export_table', [
+        'headers' => ['ID', 'Student', 'Section', 'Date', 'Status', 'Grade'],
+        'rows' => $items,
+        'columns' => [
+            'enrollment_id',
+            ['callback' => function($i) { return optional($i->student)->student_no . ' - ' . optional($i->student)->last_name; }],
+            'section_id',
+            'date_enrolled',
+            'status',
+            'letter_grade'
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

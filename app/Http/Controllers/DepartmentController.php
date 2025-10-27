@@ -8,9 +8,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DepartmentController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -103,63 +106,78 @@ class DepartmentController extends Controller
     {
         $dept = Department::findOrFail($id);
         try {
-            $dept->delete();
+            // Make dept_code unique before soft delete to avoid unique constraint error
+            $originalCode = (string) $dept->dept_code;
+            $suffix = '_deleted_' . time();
+            $maxLen = 20; // dept_code column is varchar(20)
+            if (strlen($originalCode) + strlen($suffix) > $maxLen) {
+                $trunc = substr($originalCode, 0, $maxLen - strlen($suffix));
+            } else {
+                $trunc = $originalCode;
+            }
+            $dept->dept_code = $trunc . $suffix;
+            $dept->is_deleted = 1;
+            $dept->save();
             return response()->json(['message' => 'Department deleted', 'op' => 'delete', 'success' => true]);
         } catch (\Exception $e) {
-            \Log::error('Department delete failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Department delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+            $msg = 'Department delete failed';
+            if ($e->getMessage()) {
+                $msg .= ': ' . $e->getMessage();
+            }
+            \Log::error($msg);
+            return response()->json(['message' => $msg, 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
     public function exportExcel(Request $request)
     {
-        $query = Department::query();
-        if ($search = $request->query('search')) {
-            $query->where('dept_name', 'like', "%{$search}%")
-                  ->orWhere('dept_code', 'like', "%{$search}%");
+        // Get records sorted by ID ascending
+        $items = $this->getOrderedRecords(Department::class);
+        
+        try {
+            // Try to use Maatwebsite Excel export
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\DepartmentExport($items);
+                return Excel::download($export, $this->getExportFilename('departments', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Excel export failed, falling back to CSV: ' . $e->getMessage());
         }
 
-        $allowedSorts = ['dept_id','dept_name','dept_code'];
-        $sortBy = $request->input('sort_by', 'dept_name');
-        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'dept_name';
-
-        $items = $query->orderBy($sortBy, $sortDir)->get();
-
-        $filename = 'departments_' . date('Ymd_His') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function() use ($items) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['ID','Dept Code', 'Dept Name']);
-            foreach ($items as $i) {
-                fputcsv($out, [$i->dept_id, $i->dept_code, $i->dept_name]);
+        // Fallback to CSV if Excel export fails
+        $headers = ['ID', 'Department Code', 'Department Name'];
+        return $this->downloadCsv('departments', function($file) use ($items, $headers) {
+            fputcsv($file, $headers);
+            foreach ($items as $record) {
+                fputcsv($file, [
+                    $record->dept_id,
+                    $record->dept_code,
+                    $record->dept_name,
+                ]);
             }
-            fclose($out);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        }, 'Department Records');
     }
 
     public function exportPDF(Request $request)
     {
-        $query = Department::query();
-        if ($search = $request->query('search')) {
-            $query->where('dept_name', 'like', "%{$search}%")
-                  ->orWhere('dept_code', 'like', "%{$search}%");
-        }
-
-        $allowedSorts = ['dept_id','dept_name','dept_code'];
-        $sortBy = $request->input('sort_by', 'dept_name');
-        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'dept_name';
-
-        $items = $query->orderBy($sortBy, $sortDir)->get();
-
-        $pdf = Pdf::loadView('departments.export_pdf', compact('items'));
-        return $pdf->download('departments.pdf');
+        // Get records sorted by ID ascending
+        $items = $this->getOrderedRecords(Department::class);
+        
+        // Prepare view data
+        $viewData = [
+            'items' => $items,
+            'headers' => ['ID', 'Code', 'Name'],
+            'columns' => ['dept_id', 'dept_code', 'dept_name'],
+            'logoDataUri' => $this->getLogoDataUri()
+        ];
+        
+        // Load PDF view
+        $pdf = Pdf::loadView('departments.export_pdf', $viewData);
+        
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+        
+        // Generate filename and download
+        return $pdf->download($this->getExportFilename('departments', 'pdf'));
     }
 }

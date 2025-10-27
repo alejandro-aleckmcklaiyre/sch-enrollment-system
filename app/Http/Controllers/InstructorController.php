@@ -6,9 +6,11 @@ use App\Models\Instructor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
 
 class InstructorController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $query = Instructor::with('department');
@@ -24,6 +26,11 @@ class InstructorController extends Controller
                   ->orWhere('first_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
+        }
+
+        // Add department filter
+        if ($deptId = $request->input('dept_id')) {
+            $query->where('dept_id', $deptId);
         }
 
         $perPage = $request->input('per_page', 15);
@@ -97,17 +104,31 @@ class InstructorController extends Controller
     {
         $instructor = Instructor::findOrFail($id);
         try {
-            $instructor->delete();
+            // Make email unique before soft delete to avoid unique constraint error
+            $originalEmail = (string) $instructor->email;
+            $suffix = '_deleted_' . time();
+            $maxLen = 100; // email column is varchar(100)
+            if (strlen($originalEmail) + strlen($suffix) > $maxLen) {
+                $trunc = substr($originalEmail, 0, $maxLen - strlen($suffix));
+            } else {
+                $trunc = $originalEmail;
+            }
+            $instructor->email = $trunc . $suffix;
+            $instructor->is_deleted = 1;
+            $instructor->save();
             return response()->json(['message' => 'Instructor deleted', 'op' => 'delete', 'success' => true]);
         } catch (\Exception $e) {
-            \Log::error('Instructor delete failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Instructor delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
+            $msg = 'Instructor delete failed';
+            if ($e->getMessage()) {
+                $msg .= ': ' . $e->getMessage();
+            }
+            \Log::error($msg);
+            return response()->json(['message' => $msg, 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
     public function exportExcel(Request $request)
     {
-        // For portability use CSV fallback. If you want real Excel, install maatwebsite/excel.
         $filtered = $request->input('filtered', false);
         $search = $request->input('search');
         $dept = $request->input('dept_id');
@@ -128,24 +149,33 @@ class InstructorController extends Controller
         }
         if ($dept) $query->where('dept_id', $dept);
 
-    $instructors = $filtered ? $query->orderBy($sortBy,$sortDir)->get() : Instructor::orderBy($sortBy,$sortDir)->get();
+        // enforce ascending export order
+        $instructors = $filtered ? $query->orderBy($sortBy,'asc')->get() : Instructor::orderBy($sortBy,'asc')->get();
 
-        $filename = 'instructors.csv';
+        try {
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\InstructorExport($instructors);
+                return \Maatwebsite\Excel\Facades\Excel::download($export, $this->getExportFilename('instructors', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Instructor Excel export failed, falling back to CSV: ' . $e->getMessage());
+        }
+
+        // Fallback to CSV
         $headers = ['ID','Last Name','First Name','Email','Dept ID'];
-
-        $callback = function() use ($instructors, $headers) {
-            $file = fopen('php://output', 'w');
+        
+        return $this->downloadCsv('instructors', function($file) use ($instructors, $headers) {
             fputcsv($file, $headers);
             foreach ($instructors as $i) {
-                fputcsv($file, [$i->instructor_id, $i->last_name, $i->first_name, $i->email, $i->dept_id]);
+                fputcsv($file, [
+                    $i->instructor_id, 
+                    $i->last_name, 
+                    $i->first_name, 
+                    $i->email, 
+                    $i->dept_id
+                ]);
             }
-            fclose($file);
-        };
-
-        return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        }, 'Instructor Records');
     }
 
     public function exportPDF(Request $request)
@@ -164,10 +194,19 @@ class InstructorController extends Controller
         }
         if ($dept) $query->where('dept_id', $dept);
 
-        $instructors = $filtered ? $query->orderBy('instructor_id','desc')->get() : Instructor::orderBy('instructor_id','desc')->get();
+    // enforce ascending order for PDF export
+    $instructors = $filtered ? $query->orderBy('instructor_id','asc')->get() : Instructor::orderBy('instructor_id','asc')->get();
 
-        $pdf = Pdf::loadView('instructors.export_pdf', ['instructors' => $instructors]);
-
-        return $pdf->download('instructors.pdf');
+        // Load PDF view with standard settings
+        $pdf = Pdf::loadView('instructors.export_pdf', [
+            'instructors' => $instructors,
+            'logoDataUri' => $this->getLogoDataUri()
+        ]);
+    
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+    
+        // Generate filename and download
+        return $pdf->download($this->getExportFilename('instructors', 'pdf'));
     }
 }

@@ -8,9 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EnrollmentController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -106,12 +109,6 @@ class EnrollmentController extends Controller
         $search = $request->input('search', $request->query('search'));
         $status = $request->input('status', $request->query('status'));
 
-        // sorting
-        $allowedSorts = ['enrollment_id','date_enrolled','status'];
-        $sortBy = $request->input('sort_by', 'date_enrolled');
-        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'date_enrolled';
-
         if ($search) {
             $query->whereHas('student', function($q) use ($search) {
                 $q->where('last_name', 'like', "%{$search}%")
@@ -124,43 +121,57 @@ class EnrollmentController extends Controller
             $query->where('status', $status);
         }
 
-    $items = $query->orderBy($sortBy, $sortDir)->get();
+        // Get filtered & ordered items for export (defaults to date_enrolled for enrollments)
+        $items = $this->getFilteredRecordsForExport($request, $query, Enrollment::class, 'date_enrolled');
 
-        $filename = 'enrollments_' . date('Ymd_His') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
+        try {
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\EnrollmentExport($items);
+                return Excel::download($export, $this->getExportFilename('enrollments', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Enrollment Excel export failed, falling back to CSV: ' . $e->getMessage());
+        }
 
-        $callback = function() use ($items) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['Student No','Name','Section ID','Date Enrolled','Status','Letter Grade']);
+        $callback = function($file) use ($items) {
+            fputcsv($file, ['Student No','Name','Section ID','Date Enrolled','Status','Letter Grade']);
             foreach ($items as $i) {
                 $name = trim(($i->student->last_name ?? '') . ', ' . ($i->student->first_name ?? ''));
-                fputcsv($out, [($i->student->student_no ?? ''), $name, $i->section_id, $i->date_enrolled, $i->status, $i->letter_grade]);
+                fputcsv($file, [($i->student->student_no ?? ''), $name, $i->section_id, $i->date_enrolled, $i->status, $i->letter_grade]);
             }
-            fclose($out);
         };
 
-        return response()->stream($callback, 200, $headers);
+        return $this->downloadCsv('enrollments.csv', $callback, 'Enrollment Records');
     }
 
     public function exportPDF(Request $request)
     {
         $query = Enrollment::with('student');
-        if ($search = $request->query('search')) {
+        $search = $request->input('search', $request->query('search'));
+        $status = $request->input('status', $request->query('status'));
+
+        if ($search) {
             $query->whereHas('student', function($q) use ($search) {
                 $q->where('last_name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%");
             });
         }
-        if ($status = $request->query('status')) {
+        if ($status) {
             $query->where('status', $status);
         }
 
-        $items = $query->orderBy('date_enrolled', 'desc')->get();
+        // enforce ascending order / filtered items for export
+        $items = $this->getFilteredRecordsForExport($request, $query, Enrollment::class, 'date_enrolled');
 
-        $pdf = Pdf::loadView('enrollments.export_pdf', compact('items'));
-        return $pdf->download('enrollments.pdf');
+        // Prepare logo
+        $logoDataUri = $this->getLogoDataUri();
+
+        // Load PDF view
+        $pdf = Pdf::loadView('enrollments.export_pdf', compact('items') + ['logoDataUri' => $logoDataUri]);
+
+        // Apply standard footer
+        $this->applyPdfFooter($pdf);
+
+        return $pdf->download($this->getExportFilename('enrollments', 'pdf'));
     }
 }

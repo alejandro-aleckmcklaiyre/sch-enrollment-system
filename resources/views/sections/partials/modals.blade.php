@@ -91,10 +91,9 @@
     <div class="box">
         <h3>Delete Section</h3>
         <p>Are you sure you want to delete this section?</p>
-        <form method="POST" action="{{ url('sections') }}">
+        <form id="deleteSectionForm" method="POST" action="{{ url('sections') }}">
             @csrf
-            @method('DELETE')
-            <input type="hidden" name="section_id">
+            <input type="hidden" id="delete_section_id" name="section_id">
             <div style="display:flex; gap:8px; justify-content:flex-end">
                 <button type="button" onclick="closeModal('deleteSectionModal')" class="btn-secondary">Cancel</button>
                 <button type="submit">Delete</button>

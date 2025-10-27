@@ -14,6 +14,8 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         \App\Console\Commands\DbTestCommand::class,
+        // Register sample PDF generator used for testing exports
+        \App\Console\Commands\GenerateSampleStudentsPdf::class,
     ];
 
     /**

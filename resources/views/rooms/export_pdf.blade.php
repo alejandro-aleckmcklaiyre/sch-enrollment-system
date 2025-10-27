@@ -11,26 +11,21 @@
     </style>
 </head>
 <body>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
     <h2>Rooms</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Building</th>
-                <th>Room Code</th>
-                <th>Capacity</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($rooms as $r)
-                <tr>
-                    <td>{{ $r->room_id }}</td>
-                    <td>{{ $r->building }}</td>
-                    <td>{{ $r->room_code }}</td>
-                    <td>{{ $r->capacity }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+
+    @include('components.export_table', [
+        'headers' => ['ID', 'Building', 'Room Code', 'Capacity'],
+        'rows' => $rooms,
+        'columns' => [
+            'room_id',
+            'building',
+            'room_code',
+            'capacity'
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>
