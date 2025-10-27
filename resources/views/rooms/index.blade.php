@@ -23,6 +23,8 @@
         'filterModalId' => 'filterRoomModal'
     ])
 
+    @include('rooms.filter_modal')
+
     <table>
         <thead>
             <tr>

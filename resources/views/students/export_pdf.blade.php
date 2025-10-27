@@ -12,32 +12,25 @@
     </style>
 </head>
 <body>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+    {{-- DEBUG: logoDataUri present? {{ isset($logoDataUri) && $logoDataUri ? 'yes' : 'no' }} --}}
+
     <h2>Students</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Student No</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Gender</th>
-                <th>Birthdate</th>
-                <th>Year</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($students as $s)
-                <tr>
-                    <td>{{ $s->student_id }}</td>
-                    <td>{{ $s->student_no }}</td>
-                    <td>{{ $s->last_name }}, {{ $s->first_name }}</td>
-                    <td>{{ $s->email }}</td>
-                    <td>{{ $s->gender }}</td>
-                    <td>{{ $s->birthdate }}</td>
-                    <td>{{ $s->year_level }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+
+    @include('components.export_table', [
+        'headers' => ['ID', 'Student No', 'Name', 'Email', 'Gender', 'Birthdate', 'Year'],
+        'rows' => $students,
+        'columns' => [
+            'student_id',
+            'student_no',
+            ['callback' => function($s) { return $s->last_name . ', ' . $s->first_name; }],
+            'email',
+            'gender',
+            'birthdate',
+            'year_level'
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

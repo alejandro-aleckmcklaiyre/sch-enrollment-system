@@ -12,32 +12,24 @@
     </style>
 </head>
 <body>
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
+
     <h2>Courses</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Course Code</th>
-                <th>Course Title</th>
-                <th>Units</th>
-                <th>Lecture Hrs</th>
-                <th>Lab Hrs</th>
-                <th>Department</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($courses as $c)
-                <tr>
-                    <td>{{ $c->course_id }}</td>
-                    <td>{{ $c->course_code }}</td>
-                    <td>{{ $c->course_title }}</td>
-                    <td>{{ $c->units }}</td>
-                    <td>{{ $c->lecture_hours }}</td>
-                    <td>{{ $c->lab_hours }}</td>
-                    <td>{{ optional($c->department)->dept_name ?? $c->dept_id }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+
+    @include('components.export_table', [
+        'headers' => ['ID', 'Course Code', 'Course Title', 'Units', 'Lecture Hrs', 'Lab Hrs', 'Department'],
+        'rows' => $courses,
+        'columns' => [
+            'course_id',
+            'course_code',
+            'course_title',
+            'units',
+            'lecture_hours',
+            'lab_hours',
+            ['callback' => function($c) { return optional($c->department)->dept_name ?? $c->dept_id; }]
+        ]
+    ])
+
+    @include('exports.partials.footer')
 </body>
 </html>

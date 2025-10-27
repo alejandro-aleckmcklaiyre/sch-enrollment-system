@@ -7,9 +7,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProgramController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $query = Program::with('department');
@@ -110,63 +113,73 @@ class ProgramController extends Controller
         }
     }
 
-    // Export to Excel (CSV fallback)
     public function exportExcel(Request $request)
     {
-        $filtered = $request->input('filtered', false);
-        $search = $request->input('search');
-
-        // sorting (mirror index)
-        $allowedSorts = ['program_id','program_code','program_name','dept_id'];
-        $sortBy = $request->input('sort_by', 'program_id');
-        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'program_id';
-
         $query = Program::query();
-        if ($search) {
+        
+        if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('program_code', 'like', "%{$search}%")
                   ->orWhere('program_name', 'like', "%{$search}%");
             });
         }
 
-    $programs = $filtered ? $query->orderBy($sortBy,$sortDir)->get() : Program::orderBy($sortBy,$sortDir)->get();
+        // Get filtered & ordered items
+        $items = $this->getFilteredRecordsForExport($request, $query, Program::class);
 
-        $filename = 'programs.csv';
-    $headers = ['ID','Program Code','Program Name','Dept ID'];
-
-        $callback = function() use ($programs, $headers) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $headers);
-            foreach ($programs as $p) {
-                fputcsv($file, [$p->program_id, $p->program_code, $p->program_name, $p->dept_id]);
+        try {
+            // Try to use Maatwebsite Excel export
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\ProgramsExport($items);
+                return Excel::download($export, $this->getExportFilename('programs', 'xlsx'));
             }
-            fclose($file);
-        };
+        } catch (\Throwable $e) {
+            \Log::warning('Excel export failed, falling back to CSV: ' . $e->getMessage());
+        }
 
-        return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        // Fallback to CSV
+        $headers = ['ID', 'Program Code', 'Program Name', 'Dept ID'];
+        
+        return $this->downloadCsv('programs', function($file) use ($items, $headers) {
+            fputcsv($file, $headers);
+            foreach ($items as $item) {
+                fputcsv($file, [
+                    $item->program_id,
+                    $item->program_code,
+                    $item->program_name,
+                    $item->dept_id
+                ]);
+            }
+        }, 'Program Records');
     }
 
     public function exportPDF(Request $request)
     {
-        $filtered = $request->input('filtered', false);
-        $search = $request->input('search');
-
-        $query = Program::query();
-        if ($search) {
+        $query = Program::with('department');
+        
+        if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('program_code', 'like', "%{$search}%")
                   ->orWhere('program_name', 'like', "%{$search}%");
             });
         }
 
-        $programs = $filtered ? $query->orderBy('program_id','desc')->get() : Program::orderBy('program_id','desc')->get();
+        // Get filtered & ordered items
+        $items = $this->getFilteredRecordsForExport($request, $query, Program::class);
 
-        $pdf = Pdf::loadView('programs.export_pdf', ['programs' => $programs]);
+        $data = [
+            'records' => $items,
+            'filtered' => $request->input('filtered', false),
+            'search' => $request->input('search'),
+            'sort_by' => $request->input('sort_by', 'program_id'),
+            'sort_dir' => $request->input('sort_dir', 'asc'),
+            'totals' => ['count' => $items->count()],
+            'logoDataUri' => $this->getLogoDataUri()  // Changed from 'logo' to 'logoDataUri' to match student page
+        ];
 
-        return $pdf->download('programs.pdf');
+        $pdf = PDF::loadView('programs.export_pdf', $data);  // Changed to programs.export_pdf
+        $this->applyPdfFooter($pdf);
+
+        return $pdf->download($this->getExportFilename('programs', 'pdf'));
     }
 }

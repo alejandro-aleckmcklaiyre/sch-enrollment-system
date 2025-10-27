@@ -12,23 +12,15 @@
     </style>
 </head>
 <body>
-    @include('exports.partials.header')
+    @include('exports.partials.header', ['logoDataUri' => $logoDataUri ?? null])
 
     <h2>Departments</h2>
-    <table>
-        <thead>
-            <tr><th>ID</th><th>Code</th><th>Name</th></tr>
-        </thead>
-        <tbody>
-        @foreach($items as $i)
-            <tr>
-                <td>{{ $i->dept_id }}</td>
-                <td>{{ $i->dept_code }}</td>
-                <td>{{ $i->dept_name }}</td>
-            </tr>
-        @endforeach
-        </tbody>
-    </table>
+    
+    @include('components.export_table', [
+        'headers' => $headers,
+        'rows' => $items,
+        'columns' => $columns
+    ])
 
     @include('exports.partials.footer')
 </body>

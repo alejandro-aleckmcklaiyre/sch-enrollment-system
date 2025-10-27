@@ -6,9 +6,12 @@ use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CourseController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $query = Course::with('department');
@@ -109,12 +112,6 @@ class CourseController extends Controller
         $search = $request->input('search');
         $dept = $request->input('dept_id');
 
-        // sorting
-        $allowedSorts = ['course_id','course_code','course_title','dept_id','units'];
-        $sortBy = $request->input('sort_by', 'course_id');
-        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'course_id';
-
         $query = Course::with('department');
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -124,63 +121,63 @@ class CourseController extends Controller
         }
         if ($dept) $query->where('dept_id', $dept);
 
-        // For export, override default to ascending order unless user explicitly requested descending
-        $exportSortDir = $request->has('sort_dir') ? $sortDir : 'asc';
-        $courses = $filtered ? $query->orderBy($sortBy,$exportSortDir)->get() : Course::with('department')->orderBy($sortBy,$exportSortDir)->get();
+        $records = $this->getFilteredRecordsForExport($request, $query, Course::class);
 
         try {
             if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
-                $export = new \App\Exports\CoursesExport($courses);
-                return \Maatwebsite\Excel\Facades\Excel::download($export, 'courses.xlsx');
+                $export = new \App\Exports\CoursesExport($records);
+                return Excel::download($export, $this->getExportFilename('courses', 'xlsx'));
             }
         } catch (\Throwable $e) {
             \Log::warning('Courses Excel export failed, falling back to CSV: ' . $e->getMessage());
         }
 
-        // Fallback to CSV
-        $filename = 'courses.csv';
         $headers = ['ID','Course Code','Course Title','Units','Lecture Hours','Lab Hours','Department'];
-
-        $callback = function() use ($courses, $headers) {
-            $file = fopen('php://output', 'w');
-            // University header lines
-            fputcsv($file, ['Polytechnic University of the Philippines – Taguig Campus']);
-            fputcsv($file, ['Date created: ' . date('F j, Y')]);
-            fputcsv($file, []);
-            // Column headers
+        
+        return $this->downloadCsv('courses', function($file) use ($records, $headers) {
             fputcsv($file, $headers);
-            foreach ($courses as $c) {
+            foreach ($records as $record) {
                 fputcsv($file, [
-                    $c->course_id,
-                    $c->course_code,
-                    $c->course_title,
-                    $c->units,
-                    $c->lecture_hours,
-                    $c->lab_hours,
-                    optional($c->department)->dept_name ?? $c->dept_id,
+                    $record->course_id,
+                    $record->course_code,
+                    $record->course_title,
+                    $record->units,
+                    $record->lecture_hours,
+                    $record->lab_hours,
+                    optional($record->department)->dept_name ?? $record->dept_id,
                 ]);
             }
-            fclose($file);
-        };
-
-        return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        }, 'Course Records');
     }
 
     public function exportPDF(Request $request)
     {
-        $records = Course::where('is_deleted', 0)
-            ->orderBy('course_id', 'asc')
-            ->with('department')
-            ->get();
-
-        $pdf = Pdf::loadView('courses.export_pdf', ['courses' => $records])
-            ->setPaper('A4', 'portrait');
-
-        $pdf->render(); // ensure footer scripts execute properly
-
-        return $pdf->download('courses.pdf');
+        // Get records sorted by ID ascending
+        $records = $this->getOrderedRecords(Course::class, ['department']);
+        
+        // Prepare view data
+        $viewData = [
+            'courses' => $records,
+            'headers' => ['ID', 'Code', 'Title', 'Units', 'Lecture Hrs', 'Lab Hrs', 'Department'],
+            'columns' => [
+                'course_id',
+                'course_code',
+                'course_title',
+                'units',
+                'lecture_hours',
+                'lab_hours',
+                ['relation' => 'department', 'field' => 'dept_name']
+            ],
+            'logoDataUri' => $this->getLogoDataUri()
+        ];
+        
+        // Load PDF view
+        $pdf = Pdf::loadView('courses.export_pdf', $viewData);
+        
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+        
+        // Generate filename and download
+        return $pdf->download($this->getExportFilename('courses', 'pdf'));
     }
 }

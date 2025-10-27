@@ -8,9 +8,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DepartmentController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -128,55 +131,53 @@ class DepartmentController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $query = Department::query();
-        if ($search = $request->query('search')) {
-            $query->where('dept_name', 'like', "%{$search}%")
-                  ->orWhere('dept_code', 'like', "%{$search}%");
+        // Get records sorted by ID ascending
+        $items = $this->getOrderedRecords(Department::class);
+        
+        try {
+            // Try to use Maatwebsite Excel export
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\DepartmentExport($items);
+                return Excel::download($export, $this->getExportFilename('departments', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Excel export failed, falling back to CSV: ' . $e->getMessage());
         }
 
-        $allowedSorts = ['dept_id','dept_name','dept_code'];
-        $sortBy = $request->input('sort_by', 'dept_name');
-        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'dept_name';
-
-    // enforce ascending export order
-    $items = $query->orderBy($sortBy, 'asc')->get();
-
-        $filename = 'departments_' . date('Ymd_His') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function() use ($items) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['ID','Dept Code', 'Dept Name']);
-            foreach ($items as $i) {
-                fputcsv($out, [$i->dept_id, $i->dept_code, $i->dept_name]);
+        // Fallback to CSV if Excel export fails
+        $headers = ['ID', 'Department Code', 'Department Name'];
+        return $this->downloadCsv('departments', function($file) use ($items, $headers) {
+            fputcsv($file, $headers);
+            foreach ($items as $record) {
+                fputcsv($file, [
+                    $record->dept_id,
+                    $record->dept_code,
+                    $record->dept_name,
+                ]);
             }
-            fclose($out);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        }, 'Department Records');
     }
 
     public function exportPDF(Request $request)
     {
-        $query = Department::query();
-        if ($search = $request->query('search')) {
-            $query->where('dept_name', 'like', "%{$search}%")
-                  ->orWhere('dept_code', 'like', "%{$search}%");
-        }
-
-        $allowedSorts = ['dept_id','dept_name','dept_code'];
-        $sortBy = $request->input('sort_by', 'dept_name');
-        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'dept_name';
-
-    // enforce ascending export order for PDF
-    $items = $query->orderBy($sortBy, 'asc')->get();
-
-        $pdf = Pdf::loadView('departments.export_pdf', compact('items'));
-        return $pdf->download('departments.pdf');
+        // Get records sorted by ID ascending
+        $items = $this->getOrderedRecords(Department::class);
+        
+        // Prepare view data
+        $viewData = [
+            'items' => $items,
+            'headers' => ['ID', 'Code', 'Name'],
+            'columns' => ['dept_id', 'dept_code', 'dept_name'],
+            'logoDataUri' => $this->getLogoDataUri()
+        ];
+        
+        // Load PDF view
+        $pdf = Pdf::loadView('departments.export_pdf', $viewData);
+        
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+        
+        // Generate filename and download
+        return $pdf->download($this->getExportFilename('departments', 'pdf'));
     }
 }

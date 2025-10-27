@@ -10,9 +10,12 @@ use App\Models\Term;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SectionController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -88,37 +91,37 @@ class SectionController extends Controller
         $query = Section::with(['course','instructor','room','term']);
         $search = $request->input('search', $request->query('search'));
         if($search) $query->where('section_code','like',"%{$search}%");
-        $allowedSorts = ['section_id','section_code','course_id','max_capacity'];
-        $sortBy = $request->input('sort_by', 'section_code');
-        $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'section_code';
+        
+        // Get filtered records
+        $items = $this->getFilteredRecordsForExport($request, $query, Section::class, 'section_code');
 
-        $items = $query->orderBy($sortBy, $sortDir)->get();
+        try {
+            // Try to use Maatwebsite Excel export
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\SectionExport($items);
+                return Excel::download($export, $this->getExportFilename('sections', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Excel export failed, falling back to CSV: ' . $e->getMessage());
+        }
 
-        $filename = 'sections_' . date('Ymd_His') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function() use ($items) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['ID','Section Code','Course','Term','Instructor','Room','Max Capacity']);
+        // Fallback to CSV
+        $headers = ['ID','Section Code','Course','Term','Instructor','Room','Max Capacity'];
+        
+        return $this->downloadCsv('sections', function($file) use ($items, $headers) {
+            fputcsv($file, $headers);
             foreach ($items as $i) {
-                fputcsv($out, [
+                fputcsv($file, [
                     $i->section_id,
                     $i->section_code,
                     optional($i->course)->course_code,
                     optional($i->term)->term_code,
                     optional($i->instructor)->last_name,
                     optional($i->room)->room_code,
-                    $i->max_capacity,
+                    $i->max_capacity
                 ]);
             }
-            fclose($out);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        }, 'Section Records');
     }
 
     public function exportPDF(Request $request)
@@ -126,8 +129,15 @@ class SectionController extends Controller
         $query = Section::with(['course','instructor','room','term']);
         $search = $request->input('search', $request->query('search'));
         if($search) $query->where('section_code','like',"%{$search}%");
-        $sections = $query->orderBy('section_code')->get();
-        $pdf = Pdf::loadView('sections.export_pdf', compact('sections'));
-        return $pdf->download('sections.pdf');
+        $sections = $query->orderBy('section_id','asc')->get();
+
+        // Load PDF view and apply standard footer
+        $pdf = Pdf::loadView('sections.export_pdf', compact('sections') + ['logoDataUri' => $this->getLogoDataUri()]);
+
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+
+        // Download with standardized filename
+        return $pdf->download($this->getExportFilename('sections', 'pdf'));
     }
 }

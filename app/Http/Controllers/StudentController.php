@@ -8,12 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Response;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Traits\HandlesExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
 {
+    use HandlesExports;
     public function index(Request $request)
     {
     $query = Student::with('program');
@@ -156,47 +157,25 @@ class StudentController extends Controller
     // Export to Excel
     public function exportExcel(Request $request)
     {
-        $filtered = $request->input('filtered', false);
-        $search = $request->input('search');
-        $year = $request->input('year_level');
-        $gender = $request->input('gender');
-        $program = $request->input('program_id');
-
-        $query = Student::query();
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('student_no', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-        if ($year) {
-            $query->where('year_level', $year);
-        }
-        if ($gender) {
-            $query->where('gender', $gender);
-        }
-        if ($program) {
-            $query->where('program_id', $program);
+        // Get records sorted by ID ascending with program relation
+        $students = $this->getOrderedRecords(Student::class, ['program']);
+        
+        try {
+            // Try to use Maatwebsite Excel export
+            if (class_exists('\Maatwebsite\Excel\Facades\Excel')) {
+                $export = new \App\Exports\StudentsExport($students);
+                return Excel::download($export, $this->getExportFilename('students', 'xlsx'));
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Excel export failed, falling back to CSV: ' . $e->getMessage());
         }
 
-    // support sort params for export as well
-    $allowedSorts = ['student_id','student_no','last_name','first_name','email','year_level','birthdate'];
-    $sortBy = $request->input('sort_by', 'student_id');
-    $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
-    if (!in_array($sortBy, $allowedSorts)) $sortBy = 'student_id';
+        // Fallback to CSV if Excel export fails
+        $headers = ['ID', 'Student No', 'Last Name', 'First Name', 'Middle Name', 'Email', 'Gender', 'Birthdate', 'Year Level', 'Program'];
 
-    $students = $filtered ? $query->orderBy($sortBy, $sortDir)->get() : Student::orderBy($sortBy, $sortDir)->get();
-
-        // Fallback: generate CSV so we don't require PhpSpreadsheet in this environment.
-        $filename = 'students.csv';
-    // include ID column
-    $headers = ['ID','Student No','Last Name','First Name','Middle Name','Email','Gender','Birthdate','Year Level','Program'];
-
-        $callback = function() use ($students, $headers) {
-            $file = fopen('php://output', 'w');
+        return $this->downloadCsv('students', function($file) use ($students, $headers) {
             fputcsv($file, $headers);
+            // Data rows
             foreach ($students as $s) {
                 fputcsv($file, [
                     $s->student_id,
@@ -211,52 +190,39 @@ class StudentController extends Controller
                     optional($s->program)->program_name,
                 ]);
             }
-            fclose($file);
-        };
-
-        return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        }, 'Student Records');
     }
 
     // Export to PDF
     public function exportPDF(Request $request)
     {
-        $filtered = $request->input('filtered', false);
-        $search = $request->input('search');
-        $year = $request->input('year_level');
-        $gender = $request->input('gender');
-        $program = $request->input('program_id');
-
-        $query = Student::query();
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('student_no', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-        if ($year) {
-            $query->where('year_level', $year);
-        }
-        if ($gender) {
-            $query->where('gender', $gender);
-        }
-        if ($program) {
-            $query->where('program_id', $program);
-        }
-
-        $allowedSorts = ['student_id','student_no','last_name','first_name','email','year_level','birthdate'];
-        $sortBy = $request->input('sort_by', 'student_id');
-        $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
-        if (!in_array($sortBy, $allowedSorts)) $sortBy = 'student_id';
-
-        $students = $filtered ? $query->orderBy($sortBy, $sortDir)->get() : Student::orderBy($sortBy, $sortDir)->get();
-
-    $pdf = Pdf::loadView('students.export_pdf', ['students' => $students]);
-
-        return $pdf->download('students.pdf');
+        // Get records sorted by ID ascending
+        $students = $this->getOrderedRecords(Student::class, ['program']);
+        
+        // Prepare view data
+        $viewData = [
+            'students' => $students,
+            'headers' => ['ID', 'Student No', 'Name', 'Email', 'Gender', 'Birthdate', 'Year', 'Program'],
+            'columns' => [
+                'student_id',
+                'student_no',
+                ['callback' => function($s) { return $s->last_name . ', ' . $s->first_name; }],
+                'email',
+                'gender',
+                'birthdate',
+                'year_level',
+                ['relation' => 'program', 'field' => 'program_name']
+            ],
+            'logoDataUri' => $this->getLogoDataUri()
+        ];
+        
+        // Load PDF view
+        $pdf = Pdf::loadView('students.export_pdf', $viewData);
+        
+        // Apply standard footer with page numbers
+        $this->applyPdfFooter($pdf);
+        
+        // Generate filename and download
+        return $pdf->download($this->getExportFilename('students', 'pdf'));
     }
 }

@@ -2,13 +2,14 @@
 
 namespace App\Exports;
 
+use App\Models\Room;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use App\Exports\Concerns\HasStandardExcelHeader;
 
-class DepartmentExport implements FromCollection, WithHeadings, WithEvents
+class RoomExport implements FromCollection, WithHeadings, WithEvents
 {
     use HasStandardExcelHeader;
 
@@ -21,28 +22,28 @@ class DepartmentExport implements FromCollection, WithHeadings, WithEvents
 
     public function collection()
     {
-        return $this->items->map(function($i){
+        return $this->items->map(function($r){
             return [
-                $i->dept_id,
-                $i->dept_code,
-                $i->dept_name,
+                $r->room_id,
+                $r->building,
+                $r->room_code,
+                $r->capacity,
             ];
         });
     }
 
     public function headings(): array
     {
-        return ['ID','Code','Name'];
+        return ['ID','Building','Room Code','Capacity'];
     }
 
     public function registerEvents(): array
     {
         return [
             AfterSheet::class => function(AfterSheet $event) {
-                $this->applyStandardHeader($event, 'Department Records', 3);
-                // move table start to row 5
+                $this->applyStandardHeader($event, 'Room Records', 4);
                 $event->sheet->insertNewRowBefore(5, 1);
-            },
+            }
         ];
     }
 }

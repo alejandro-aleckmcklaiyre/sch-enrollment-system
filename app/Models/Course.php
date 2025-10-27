@@ -7,6 +7,21 @@ use App\Models\Traits\SoftDeleteFlag;
 
 class Course extends Model
 {
+    /**
+     * Get columns that can be searched
+     */
+    public static function getSearchableColumns(): array
+    {
+        return ['course_code', 'course_title'];
+    }
+
+    /**
+     * Get allowed sort columns
+     */
+    public static function getAllowedSorts(): array
+    {
+        return ['course_id', 'course_code', 'course_title', 'dept_id', 'units'];
+    }
     protected $table = 'tblcourse';
     protected $primaryKey = 'course_id';
     public $timestamps = false;

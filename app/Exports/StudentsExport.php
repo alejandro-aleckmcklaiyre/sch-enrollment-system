@@ -2,18 +2,22 @@
 
 namespace App\Exports;
 
+use App\Exports\Concerns\HasStandardExcelHeader;
 use App\Models\Student;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
-class StudentsExport implements FromCollection, WithHeadings, WithDrawings, WithEvents
+class StudentsExport implements FromCollection, WithEvents, WithHeadings
 {
+    use HasStandardExcelHeader;
     protected $filtered;
     protected $params;
+    protected $sortField = 'student_id';
 
     public function __construct($filtered = false, $params = [])
     {
@@ -22,6 +26,51 @@ class StudentsExport implements FromCollection, WithHeadings, WithDrawings, With
     }
 
     public function collection()
+    {
+        return new Collection($this->query());
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $this->applyStandardHeader($event, 'Students List', 17);
+            }
+        ];
+    }
+
+    public function headings(): array
+    {
+        return [
+            'Student ID',
+            'Program',
+            'Last Name',
+            'First Name',
+            'Middle Name',
+            'Date of Birth',
+            'Place of Birth',
+            'Sex',
+            'Civil Status',
+            'Nationality',
+            'Religion',
+            'Contact Number',
+            'Email',
+            'Address',
+            'Guardian Name',
+            'Guardian Contact Number',
+            'Guardian Address',
+            'Status',
+            'Created At',
+            'Updated At'
+        ];
+    }
+
+    public function download($filename)
+    {
+        return Excel::download($this, $filename);
+    }
+
+    protected function query()
     {
         $query = Student::with('program');
 
@@ -47,65 +96,44 @@ class StudentsExport implements FromCollection, WithHeadings, WithDrawings, With
             }
         }
 
-        // enforce ascending order for exports
-        $students = $query->orderBy($this->params['sort_by'] ?? 'student_id', 'asc')
-            ->get();
+        // Apply sorting with proper numeric handling for IDs
+        $primaryKey = 'student_id';
+        if (!empty($this->params['sort_by'])) {
+            $sortBy = $this->params['sort_by'];
+            $sortDir = strtolower($this->params['sort_dir'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+            
+            if ($sortBy === $primaryKey) {
+                $query->orderByRaw("CAST(? AS UNSIGNED) ?", [$sortBy, $sortDir]);
+            } else {
+                $query->orderBy($sortBy, $sortDir);
+            }
+        } else {
+            $query->orderBy($primaryKey, 'asc');
+        }
 
-        return $students->map(function ($s) {
+        return $query->get()->map(function ($s) {
             return [
-                'student_no' => $s->student_no,
+                'id' => $s->id,
+                'program' => optional($s->program)->program_name,
                 'last_name' => $s->last_name,
                 'first_name' => $s->first_name,
                 'middle_name' => $s->middle_name,
+                'birth_date' => $s->birth_date,
+                'birth_place' => $s->birth_place,
+                'sex' => $s->sex,
+                'civil_status' => $s->civil_status,
+                'nationality' => $s->nationality,
+                'religion' => $s->religion,
+                'contact_no' => $s->contact_no,
                 'email' => $s->email,
-                'gender' => $s->gender,
-                'birthdate' => $s->birthdate,
-                'year_level' => $s->year_level,
-                'program' => optional($s->program)->program_name,
+                'address' => $s->address,
+                'guardian_name' => $s->guardian_name,
+                'guardian_contact_no' => $s->guardian_contact_no,
+                'guardian_address' => $s->guardian_address,
+                'status' => $s->status,
+                'created_at' => $s->created_at,
+                'updated_at' => $s->updated_at
             ];
-        });
-    }
-
-    public function headings(): array
-    {
-        return ['Student No','Last Name','First Name','Middle Name','Email','Gender','Birthdate','Year Level','Program'];
-    }
-
-    public function drawings()
-    {
-        $drawing = new Drawing();
-        $drawing->setName('PUP Logo');
-        $drawing->setPath(public_path('images/pup_logo.jpg'));
-        $drawing->setHeight(60);
-        $drawing->setCoordinates('A1');
-        return $drawing;
-    }
-
-    public function registerEvents(): array
-    {
-        $title = 'Polytechnic University of the Philippines – Taguig Campus';
-        $date = date('F j, Y');
-
-        return [
-            AfterSheet::class => function(AfterSheet $event) use ($title, $date) {
-                $sheet = $event->sheet->getDelegate();
-                // shift existing rows down to make room for header (logo + text)
-                $sheet->insertNewRowBefore(1, 3);
-                // set header text
-                // place title centered across columns B to I
-                $sheet->setCellValue('B1', $title);
-                $sheet->setCellValue('B2', 'Date created: ' . $date);
-                // style header
-                $sheet->getStyle('B1')->getFont()->setBold(true)->setSize(12);
-                $sheet->getStyle('B2')->getFont()->setSize(10);
-                // Merge header area across a few columns for nicer layout
-                $sheet->mergeCells('B1:I1');
-                $sheet->mergeCells('B2:I2');
-                // center the merged header
-                $sheet->getStyle('B1:I2')->getAlignment()->setHorizontal("center");
-                // Footer for printing (page numbers + print date)
-                $sheet->getHeaderFooter()->setOddFooter('Page &P of &N — Printed on: ' . date('F j, Y'));
-            }
-        ];
+        })->toArray();
     }
 }
