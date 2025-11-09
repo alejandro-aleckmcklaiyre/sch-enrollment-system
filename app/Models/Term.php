@@ -16,4 +16,11 @@ class Term extends Model
     public $timestamps = false;
 
     protected $fillable = ['term_code','start_date','end_date','is_deleted'];
+    
+    protected $casts = [
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d'
+    ];
+
+    protected $dates = ['start_date', 'end_date'];
 }

@@ -1,0 +1,47 @@
+.course-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    background: white;
+}
+
+.course-checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    background: #f9fafb;
+}
+
+.course-checklist-item:hover {
+    background: #f3f4f6;
+}
+
+.course-checklist-item label {
+    flex: 1;
+    cursor: pointer;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.course-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.course-title {
+    font-weight: 500;
+}
+
+.course-details {
+    color: #4b5563;
+    font-size: 0.85em;
+}

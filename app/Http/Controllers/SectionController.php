@@ -19,9 +19,9 @@ class SectionController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
-        $query = Section::with(['course','instructor','room','term']);
+    $query = Section::with(['course','instructor','room','term']);
 
-        $allowedSorts = ['section_id','section_code','course_id','max_capacity'];
+    $allowedSorts = ['section_id','section_code','course_id','max_capacity'];
         $sortBy = $request->input('sort_by', 'section_code');
         $sortDir = strtolower($request->input('sort_dir', 'asc')) === 'asc' ? 'asc' : 'desc';
         if (!in_array($sortBy, $allowedSorts)) $sortBy = 'section_code';
@@ -41,12 +41,40 @@ class SectionController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->only(['section_code','course_id','term_id','instructor_id','day_pattern','start_time','end_time','room_id','max_capacity']);
+        // Allow selecting existing section_code or providing new one
+        $payload = $request->all();
+        $sectionCode = $request->input('section_code');
+        $newSectionCode = $request->input('new_section_code');
+        $courseId = $request->input('course_id');
+
+        if (empty($sectionCode) && empty($newSectionCode)) {
+            return response()->json(['message' => 'Section code is required', 'op' => 'add', 'success' => false], 422);
+        }
+
+        $section_code = $sectionCode ?: $newSectionCode;
+
+        $data = $request->only(['term_id','instructor_id','day_pattern','start_time','end_time','room_id','max_capacity']);
+        $data['section_code'] = $section_code;
+        $data['course_id'] = $courseId;
+
         $validator = Validator::make($data, [
             'section_code' => 'required|string|max:20',
             'course_id' => 'required|exists:tblcourse,course_id',
+            'term_id' => 'required|exists:tblterm,term_id',
+            'instructor_id' => 'required|exists:tblinstructor,instructor_id',
+            'room_id' => 'required|exists:tblroom,room_id',
         ]);
         if ($validator->fails()) return response()->json(['errors'=>$validator->errors(), 'op' => 'add', 'success' => false],422);
+
+        // Prevent duplicate section_code + course_id
+        $exists = Section::where('section_code', $section_code)
+                    ->where('course_id', $courseId)
+                    ->where('is_deleted', 0)
+                    ->exists();
+        if ($exists) {
+            return response()->json(['message' => 'This course is already assigned to the selected section code', 'op' => 'add', 'success' => false], 409);
+        }
+
         try {
             $sec = Section::create($data);
             return response()->json(['message'=>'Section created', 'op' => 'add', 'success' => true, 'data' => $sec]);
@@ -59,12 +87,39 @@ class SectionController extends Controller
     public function update(Request $request, $id)
     {
         $s = Section::findOrFail($id);
-        $data = $request->only(['section_code','course_id','term_id','instructor_id','day_pattern','start_time','end_time','room_id','max_capacity']);
+        $sectionCode = $request->input('section_code');
+        $newSectionCode = $request->input('new_section_code');
+        $courseId = $request->input('course_id');
+
+        if (empty($sectionCode) && empty($newSectionCode)) {
+            return response()->json(['message' => 'Section code is required', 'op' => 'update', 'success' => false], 422);
+        }
+
+        $section_code = $sectionCode ?: $newSectionCode;
+
+        $data = $request->only(['term_id','instructor_id','day_pattern','start_time','end_time','room_id','max_capacity']);
+        $data['section_code'] = $section_code;
+        $data['course_id'] = $courseId;
+
         $validator = Validator::make($data, [
             'section_code' => 'required|string|max:20',
             'course_id' => 'required|exists:tblcourse,course_id',
+            'term_id' => 'required|exists:tblterm,term_id',
+            'instructor_id' => 'required|exists:tblinstructor,instructor_id',
+            'room_id' => 'required|exists:tblroom,room_id',
         ]);
         if ($validator->fails()) return response()->json(['errors'=>$validator->errors(), 'op' => 'update', 'success' => false],422);
+
+        // Prevent duplicate section_code + course_id for other records
+        $exists = Section::where('section_code', $section_code)
+                    ->where('course_id', $courseId)
+                    ->where('is_deleted', 0)
+                    ->where('section_id', '!=', $s->section_id)
+                    ->exists();
+        if ($exists) {
+            return response()->json(['message' => 'This course is already assigned to the selected section code', 'op' => 'update', 'success' => false], 409);
+        }
+
         try {
             $s->update($data);
             return response()->json(['message'=>'Section updated', 'op' => 'update', 'success' => true, 'data' => $s]);
@@ -93,7 +148,7 @@ class SectionController extends Controller
         if($search) $query->where('section_code','like',"%{$search}%");
         
         // Get filtered records
-        $items = $this->getFilteredRecordsForExport($request, $query, Section::class, 'section_code');
+    $items = $this->getFilteredRecordsForExport($request, $query, Section::class, 'section_code');
 
         try {
             // Try to use Maatwebsite Excel export

@@ -42,7 +42,7 @@
                     <td>{{ optional($e->student)->student_no }} - {{ optional($e->student)->last_name }}</td>
                     <td>{{ $e->section_id }}</td>
                     <td>{{ $e->date_enrolled }}</td>
-                    <td>{{ $e->status }}</td>
+                    <td class="status-{{ strtolower($e->status ?? 'enrolled') }}">{{ ucfirst($e->status ?? 'Enrolled') }}</td>
                     <td>{{ $e->letter_grade }}</td>
                     <td style="display:flex; gap:8px; justify-content:flex-start; align-items:center;">
                         <button onclick="openEnrollmentEdit({{ $e->enrollment_id }}, {{ json_encode($e) }})">Edit</button>
@@ -83,15 +83,78 @@
     document.getElementById('createForm').addEventListener('submit', function(e){
         e.preventDefault();
         const form = e.target;
-        fetch(form.action || '/enrollments', {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'createEnrollmentModal'); });
+        const submitBtn = form.querySelector('[type="submit"]');
+        if(form.dataset.submitting === 'true') return; // Prevent double submit
+        
+        form.dataset.submitting = 'true';
+        submitBtn.disabled = true;
+        
+        fetch(form.action || '/enrollments', {
+            method:'POST', 
+            headers:{
+                'X-CSRF-TOKEN':'{{ csrf_token() }}',
+                'Accept':'application/json'
+            }, 
+            body: new FormData(form)
+        })
+        .then(async response => {
+            const data = await response.json();
+            // Add HTTP status to response for proper error handling
+            data.httpStatus = response.status;
+            return data;
+        })
+        .then(resp => {
+            handleResponse(resp, 'createEnrollmentModal');
+        })
+        .catch(error => {
+            showAlert('error', {
+                title: 'Error',
+                detail: 'Failed to create enrollment. Please try again.'
+            });
+        })
+        .finally(() => {
+            form.dataset.submitting = 'false';
+            submitBtn.disabled = false;
+        });
     });
 
     document.getElementById('editForm').addEventListener('submit', function(e){
         e.preventDefault();
-        const id = this.querySelector('[name="id"]').value || document.getElementById('edit_id')?.value;
-        fetch('/enrollments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'PUT'}, body: new FormData(this)})
-    .then(r=>r.json()).then(resp=>{ handleResponse(resp,'editEnrollmentModal'); });
+        const form = this;
+        const submitBtn = form.querySelector('[type="submit"]');
+        if(form.dataset.submitting === 'true') return;
+        
+        const id = form.querySelector('[name="id"]').value || document.getElementById('edit_id')?.value;
+        
+        form.dataset.submitting = 'true';
+        submitBtn.disabled = true;
+        
+        fetch('/enrollments/' + id, {
+            method:'POST', 
+            headers:{
+                'X-CSRF-TOKEN':'{{ csrf_token() }}',
+                'X-HTTP-Method-Override':'PUT'
+            }, 
+            body: new FormData(form)
+        })
+        .then(async response => {
+            const data = await response.json();
+            data.httpStatus = response.status;
+            return data;
+        })
+        .then(resp => {
+            handleResponse(resp, 'editEnrollmentModal');
+        })
+        .catch(error => {
+            showAlert('error', {
+                title: 'Error',
+                detail: 'Failed to update enrollment. Please try again.'
+            });
+        })
+        .finally(() => {
+            form.dataset.submitting = 'false';
+            submitBtn.disabled = false;
+        });
     });
 
     document.getElementById('deleteForm').addEventListener('submit', function(e){

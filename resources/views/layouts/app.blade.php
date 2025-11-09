@@ -35,7 +35,11 @@
         input,select{padding:8px; border:1px solid rgba(0,0,0,0.08); background:white}
         /* simple modal styles */
         .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.4)}
-    .modal .box{background:var(--panel); padding:14px; width:640px; max-width:92vw; max-height:78vh; overflow:auto; box-shadow:0 8px 24px rgba(0,0,0,0.2); border-radius:8px}
+    .modal .box{background:var(--panel); padding:20px; width:640px; max-width:92vw; max-height:78vh; overflow:auto; box-shadow:0 8px 24px rgba(0,0,0,0.2); border-radius:8px}
+        .form-group { display:flex; flex-direction:column; gap:4px; }
+        .form-group label { font-weight:500; color:var(--text); }
+        .form-group input, .form-group select { width:100%; box-sizing:border-box; }
+        .help-text { font-size:0.9em; color:var(--muted); margin-top:2px; }
     /* Constrain SVGs used in UI (pagination/icons) so they don't scale unexpectedly */
     .card .pagination, .content .pagination { display:flex; gap:8px; align-items:center; }
     .card .pagination svg, .content .pagination svg { width:1em !important; height:1em !important; max-width:24px !important; max-height:24px !important; }
@@ -88,6 +92,122 @@
     .table-header-root .btn-secondary { background: var(--muted); color:var(--bg); }
     /* ensure alignment with table width inside .card */
     .card > .table-header-root, .card .table-header-root { width:100%; box-sizing:border-box }
+    </style>
+    <style>
+        /* Course checklist styles */
+        .course-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: white;
+            margin-top: 8px;
+        }
+
+        .course-checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: var(--bg);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .course-checklist-item:hover {
+            background: var(--panel);
+            border-color: var(--accent);
+        }
+
+        /* Custom checkbox styling */
+        .course-checklist-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            cursor: pointer;
+            position: relative;
+            border: 2px solid var(--accent);
+            border-radius: 3px;
+            background: white;
+            flex-shrink: 0;
+        }
+
+        .course-checklist-item input[type="checkbox"]:checked {
+            background: var(--accent);
+        }
+
+        .course-checklist-item input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            line-height: 1;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .course-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 4px 0;
+        }
+
+        .course-title {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 1.05em;
+        }
+
+        .course-details {
+            color: var(--muted);
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        /* Selected state */
+        .course-checklist-item.selected {
+            background: var(--panel);
+            border-color: var(--accent);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* Course selection header */
+        .course-selection-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 8px;
+        }
+
+        .course-selection-count {
+            font-size: 0.9em;
+            color: var(--muted);
+        }
+
+        .select-all-courses {
+            font-size: 0.9em;
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 4px 8px;
+        }
+
+        .select-all-courses:hover {
+            color: var(--text);
+        }
     </style>
     @stack('styles')
 </head>

@@ -30,14 +30,50 @@ class TermController extends Controller
     public function store(Request $request)
     {
         $data = $request->only(['term_code','start_date','end_date']);
-        $validator = Validator::make($data, ['term_code'=>'required','start_date'=>'required|date','end_date'=>'required|date']);
-        if($validator->fails()) return response()->json(['errors'=>$validator->errors(), 'op' => 'add', 'success' => false],422);
+        $validator = Validator::make($data, [
+            'term_code' => 'required',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date'
+        ]);
+        
+        if($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(), 
+                'op' => 'add', 
+                'success' => false
+            ], 422);
+        }
+
         try {
+            // Check if the term code exists in non-deleted terms
+            $existingTerm = Term::where('term_code', $data['term_code'])
+                               ->where('is_deleted', 0)
+                               ->first();
+                               
+            if ($existingTerm) {
+                return response()->json([
+                    'message' => 'This term code is already in use',
+                    'op' => 'add',
+                    'success' => false
+                ], 409);
+            }
+
+            $data['is_deleted'] = 0; // Ensure new terms are not deleted
             $t = Term::create($data);
-            return response()->json(['message'=>'Term created', 'op' => 'add', 'success' => true, 'data' => $t]);
+            
+            return response()->json([
+                'message' => 'Term created successfully', 
+                'op' => 'add', 
+                'success' => true, 
+                'data' => $t
+            ]);
         } catch (\Exception $e) {
             \Log::error('Term create failed: ' . $e->getMessage());
-            return response()->json(['message'=>'Term create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()],500);
+            return response()->json([
+                'message' => 'Failed to create term. Please try again.',
+                'op' => 'add',
+                'success' => false
+            ], 500);
         }
     }
 
@@ -93,10 +129,12 @@ class TermController extends Controller
         return $this->downloadCsv('terms', function($file) use ($items, $headers) {
             fputcsv($file, $headers);
             foreach ($items as $i) {
+                // Prefix date values with an apostrophe so Excel opens them as text
+                // This prevents Excel from rendering '#####' when it mis-parses/auto-formats dates
                 fputcsv($file, [
-                    $i->term_code, 
-                    $i->start_date, 
-                    $i->end_date
+                    $i->term_code,
+                    $i->start_date ? '\'' . date('m/d/Y', strtotime($i->start_date)) : '',
+                    $i->end_date ? '\'' . date('m/d/Y', strtotime($i->end_date)) : ''
                 ]);
             }
         }, 'Term Records');
