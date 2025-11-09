@@ -1,0 +1,19 @@
+.status-enrolled {
+    color: #22c55e;
+    font-weight: 500;
+}
+
+.status-dropped {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+.status-completed {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.status-irregular {
+    color: #f97316;
+    font-weight: 500;
+}

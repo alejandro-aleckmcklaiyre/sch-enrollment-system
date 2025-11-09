@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Enrollment;
 use App\Models\Student;
+use App\Models\Section;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class EnrollmentController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
-        $query = Enrollment::with('student');
+    $query = Enrollment::with(['student','section']);
 
         $allowedSorts = ['enrollment_id','date_enrolled','status'];
         $sortBy = $request->input('sort_by', 'date_enrolled');
@@ -39,30 +40,94 @@ class EnrollmentController extends Controller
     $enrollments = $query->orderBy($sortBy, $sortDir)->paginate($perPage)->withQueryString();
 
         $students = Student::orderBy('last_name')->get();
+        // pass distinct section codes and statuses for dropdowns in the view
+        $sections = Section::select('section_code')->distinct()->orderBy('section_code')->get();
+        // also provide full section rows (for edit dropdowns where a specific section_id is needed)
+        $sectionRows = Section::orderBy('section_code')->orderBy('section_id')->get();
+        $statuses = Enrollment::getAvailableStatuses();
 
-        return view('enrollments.index', compact('enrollments','students'));
+    return view('enrollments.index', compact('enrollments','students','sections','sectionRows','statuses'));
     }
 
     public function store(Request $request)
     {
-        $data = $request->only(['student_id','section_id','date_enrolled','status','letter_grade']);
+        $studentId = $request->input('student_id');
+        $sectionCode = $request->input('section_code'); // we'll receive section_code from the form
+        $isIrregular = $request->boolean('is_irregular');
+        $selectedSectionRowIds = $request->input('course_section_row_ids', []); // for irregular: array of section row ids
+        $dateEnrolled = $request->input('date_enrolled', now());
+        $statusInput = $request->input('status');
 
-        $validator = Validator::make($data, [
+        $validator = Validator::make([
+            'student_id' => $studentId,
+            'section_code' => $sectionCode,
+            'status' => $statusInput
+        ], [
             'student_id' => 'required|exists:tblstudent,student_id',
-            'section_id' => 'required|integer',
-            'date_enrolled' => 'required|date',
-            'status' => 'required|string|max:20',
+            'section_code' => 'required|string',
+            'status' => 'required|in:enrolled,dropped,completed,irregular'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors(), 'op' => 'add', 'success' => false], 422);
         }
+
         try {
-            $en = Enrollment::create($data);
-            return response()->json(['message' => 'Enrollment created', 'op' => 'add', 'success' => true, 'data' => $en]);
+            // Determine section rows to enroll
+            if ($isIrregular) {
+                // Expect array of section row ids
+                if (empty($selectedSectionRowIds) || !is_array($selectedSectionRowIds)) {
+                    return response()->json(['message' => 'No courses selected for irregular enrollment', 'success' => false], 422);
+                }
+
+                $toEnroll = Section::whereIn('section_id', $selectedSectionRowIds)->where('is_deleted',0)->get();
+                if ($toEnroll->isEmpty()) {
+                    return response()->json(['message' => 'Selected course/section rows not found', 'success' => false], 404);
+                }
+                $desiredStatus = 'irregular';
+            } else {
+                // Regular: enroll into all section rows that share the same section_code
+                $toEnroll = Section::where('section_code', $sectionCode)->where('is_deleted',0)->get();
+                if ($toEnroll->isEmpty()) {
+                    return response()->json(['message' => 'No courses found for selected section code', 'success' => false], 422);
+                }
+                $desiredStatus = 'enrolled';
+            }
+
+            // Check duplicates for any of the enrollments
+            $duplicates = [];
+            foreach ($toEnroll as $srow) {
+                $exists = Enrollment::where('student_id', $studentId)
+                            ->where('section_id', $srow->section_id)
+                            ->where('course_id', $srow->course_id)
+                            ->where('is_deleted',0)
+                            ->exists();
+                if ($exists) {
+                    $duplicates[] = ['section_id' => $srow->section_id, 'course_id' => $srow->course_id];
+                }
+            }
+
+            if (!empty($duplicates)) {
+                return response()->json(['message' => 'Student is already enrolled in one or more selected section-course combinations', 'duplicates' => $duplicates, 'success' => false], 409);
+            }
+
+            // Create enrollments
+            $created = [];
+            foreach ($toEnroll as $srow) {
+                $en = Enrollment::create([
+                    'student_id' => $studentId,
+                    'section_id' => $srow->section_id,
+                    'course_id' => $srow->course_id,
+                    'date_enrolled' => $dateEnrolled,
+                    'status' => $desiredStatus,
+                ]);
+                $created[] = $en;
+            }
+
+            return response()->json(['message' => 'Enrollment(s) created', 'success' => true, 'data' => $created]);
         } catch (\Exception $e) {
             \Log::error('Enrollment create failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Enrollment create failed', 'op' => 'add', 'success' => false, 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to create enrollment. Please try again.', 'op' => 'add', 'success' => false], 500);
         }
     }
 
@@ -173,5 +238,36 @@ class EnrollmentController extends Controller
         $this->applyPdfFooter($pdf);
 
         return $pdf->download($this->getExportFilename('enrollments', 'pdf'));
+    }
+
+    /**
+     * Return all section rows (courses) for a given section identifier (id or code)
+     */
+    public function getSectionCourses($identifier)
+    {
+        if (is_numeric($identifier)) {
+            $section = Section::findOrFail($identifier);
+            $sectionCode = $section->section_code;
+        } else {
+            $sectionCode = urldecode($identifier);
+        }
+
+        $rows = Section::where('section_code', $sectionCode)->where('is_deleted', 0)->get();
+
+        $courses = $rows->map(function($r){
+            return [
+                'section_id' => $r->section_id,
+                'course_id' => $r->course_id,
+                'course_code' => optional($r->course)->course_code,
+                'course_title' => optional($r->course)->course_title,
+                'instructor_name' => optional($r->instructor)->last_name ? optional($r->instructor)->last_name . ', ' . optional($r->instructor)->first_name : null,
+                'room_code' => optional($r->room)->room_code,
+                'day_pattern' => $r->day_pattern,
+                'start_time' => $r->start_time,
+                'end_time' => $r->end_time,
+            ];
+        });
+
+        return response()->json(['courses' => $courses, 'success' => true]);
     }
 }

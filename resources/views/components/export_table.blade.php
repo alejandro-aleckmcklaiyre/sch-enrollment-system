@@ -52,7 +52,11 @@
                                 {{ $column['callback']($row) }}
                             @endif
                         @else
-                            {{ $row->{$column} }}
+                            @if(in_array($column, ['start_date', 'end_date']) && $row->{$column})
+                                {{ Carbon\Carbon::parse($row->{$column})->format('m/d/Y') }}
+                            @else
+                                {{ $row->{$column} }}
+                            @endif
                         @endif
                     </td>
                 @endforeach

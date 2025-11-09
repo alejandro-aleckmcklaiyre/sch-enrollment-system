@@ -4,36 +4,73 @@
         <h3>Create Section</h3>
         <form id="createForm" method="POST" action="{{ url('sections') }}">
             @csrf
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
-                <input name="section_code" placeholder="Section Code" required>
-                <select name="course_id" required>
-                    @foreach($courses as $c)
-                        <option value="{{ $c->course_id }}">{{ $c->course_code }} - {{ $c->course_title }}</option>
-                    @endforeach
-                </select>
-                <select name="term_id" required>
-                    @foreach($terms as $t)
-                        <option value="{{ $t->term_id }}">{{ $t->term_code }}</option>
-                    @endforeach
-                </select>
-                <select name="instructor_id">
-                    <option value="">--</option>
-                    @foreach($instructors as $i)
-                        <option value="{{ $i->instructor_id }}">{{ $i->last_name }}, {{ $i->first_name }}</option>
-                    @endforeach
-                </select>
-                <select name="room_id">
-                    <option value="">--</option>
-                    @foreach($rooms as $r)
-                        <option value="{{ $r->room_id }}">{{ $r->room_code }}</option>
-                    @endforeach
-                </select>
-                <input name="day_pattern" placeholder="Day Pattern">
-                <input name="start_time" type="time">
-                <input name="end_time" type="time">
-                <input name="max_capacity" type="number" min="0" placeholder="Max Capacity">
+            <div style="display:grid; gap:12px">
+                <div class="form-group">
+                    <label for="create_section_code">Section Code</label>
+                    <input id="create_section_code" name="section_code" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="create_course_id">Course</label>
+                    <select id="create_course_id" name="course_id" required>
+                        @foreach($courses as $c)
+                            <option value="{{ $c->course_id }}">{{ $c->course_code }} - {{ $c->course_title }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="create_term_id">Term</label>
+                    <select id="create_term_id" name="term_id" required>
+                        @foreach($terms as $t)
+                            <option value="{{ $t->term_id }}">{{ $t->term_code }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="create_instructor_id">Instructor</label>
+                    <select id="create_instructor_id" name="instructor_id">
+                        <option value="">-- Select Instructor --</option>
+                        @foreach($instructors as $i)
+                            <option value="{{ $i->instructor_id }}">{{ $i->last_name }}, {{ $i->first_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="create_room_id">Room</label>
+                    <select id="create_room_id" name="room_id">
+                        <option value="">-- Select Room --</option>
+                        @foreach($rooms as $r)
+                            <option value="{{ $r->room_id }}">{{ $r->room_code }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="create_day_pattern">Day Pattern</label>
+                    <input id="create_day_pattern" name="day_pattern">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+                    <div class="form-group">
+                        <label for="create_start_time">Start Time</label>
+                        <input id="create_start_time" name="start_time" type="time">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="create_end_time">End Time</label>
+                        <input id="create_end_time" name="end_time" type="time">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="create_max_capacity">Maximum Capacity</label>
+                    <input id="create_max_capacity" name="max_capacity" type="number" min="0">
+                </div>
             </div>
-            <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end">
+            <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end">
                 <button type="button" onclick="closeModal('createSectionModal')" class="btn-secondary">Cancel</button>
                 <button type="submit">Save</button>
             </div>
@@ -49,36 +86,73 @@
             @csrf
             @method('PUT')
             <input type="hidden" name="section_id">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
-                <input name="section_code" placeholder="Section Code" required>
-                <select name="course_id" required>
-                    @foreach($courses as $c)
-                        <option value="{{ $c->course_id }}">{{ $c->course_code }} - {{ $c->course_title }}</option>
-                    @endforeach
-                </select>
-                <select name="term_id" required>
-                    @foreach($terms as $t)
-                        <option value="{{ $t->term_id }}">{{ $t->term_code }}</option>
-                    @endforeach
-                </select>
-                <select name="instructor_id">
-                    <option value="">--</option>
-                    @foreach($instructors as $i)
-                        <option value="{{ $i->instructor_id }}">{{ $i->last_name }}, {{ $i->first_name }}</option>
-                    @endforeach
-                </select>
-                <select name="room_id">
-                    <option value="">--</option>
-                    @foreach($rooms as $r)
-                        <option value="{{ $r->room_id }}">{{ $r->room_code }}</option>
-                    @endforeach
-                </select>
-                <input name="day_pattern" placeholder="Day Pattern">
-                <input name="start_time" type="time">
-                <input name="end_time" type="time">
-                <input name="max_capacity" type="number" min="0" placeholder="Max Capacity">
+            <div style="display:grid; gap:12px">
+                <div class="form-group">
+                    <label for="edit_section_code">Section Code</label>
+                    <input id="edit_section_code" name="section_code" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_course_id">Course</label>
+                    <select id="edit_course_id" name="course_id" required>
+                        @foreach($courses as $c)
+                            <option value="{{ $c->course_id }}">{{ $c->course_code }} - {{ $c->course_title }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_term_id">Term</label>
+                    <select id="edit_term_id" name="term_id" required>
+                        @foreach($terms as $t)
+                            <option value="{{ $t->term_id }}">{{ $t->term_code }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_instructor_id">Instructor</label>
+                    <select id="edit_instructor_id" name="instructor_id">
+                        <option value="">-- Select Instructor --</option>
+                        @foreach($instructors as $i)
+                            <option value="{{ $i->instructor_id }}">{{ $i->last_name }}, {{ $i->first_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_room_id">Room</label>
+                    <select id="edit_room_id" name="room_id">
+                        <option value="">-- Select Room --</option>
+                        @foreach($rooms as $r)
+                            <option value="{{ $r->room_id }}">{{ $r->room_code }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_day_pattern">Day Pattern</label>
+                    <input id="edit_day_pattern" name="day_pattern">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+                    <div class="form-group">
+                        <label for="edit_start_time">Start Time</label>
+                        <input id="edit_start_time" name="start_time" type="time">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_end_time">End Time</label>
+                        <input id="edit_end_time" name="end_time" type="time">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_max_capacity">Maximum Capacity</label>
+                    <input id="edit_max_capacity" name="max_capacity" type="number" min="0">
+                </div>
             </div>
-            <div style="margin-top:8px; display:flex; gap:8px; justify-content:flex-end">
+            <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end">
                 <button type="button" onclick="closeModal('editSectionModal')" class="btn-secondary">Cancel</button>
                 <button type="submit">Update</button>
             </div>

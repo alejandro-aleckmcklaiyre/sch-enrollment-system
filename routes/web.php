@@ -78,6 +78,8 @@ Route::get('departments/export-pdf', [DepartmentController::class, 'exportPDF'])
 Route::resource('enrollments', EnrollmentController::class)->only(['index','store','update','destroy']);
 Route::post('enrollments/export-excel', [EnrollmentController::class, 'exportExcel'])->name('enrollments.exportExcel');
 Route::get('enrollments/export-pdf', [EnrollmentController::class, 'exportPDF'])->name('enrollments.exportPDF');
+// API: get courses/section rows for a section identifier (section_code or section_id)
+Route::get('enrollments/sections/{identifier}/courses', [EnrollmentController::class, 'getSectionCourses']);
 
 Route::resource('sections', SectionController::class)->only(['index','store','update','destroy']);
 Route::post('sections/export-excel', [SectionController::class, 'exportExcel'])->name('sections.exportExcel');

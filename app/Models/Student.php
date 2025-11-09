@@ -10,20 +10,11 @@ class Student extends Model
     protected $table = 'tblstudent';
     protected $primaryKey = 'student_id';
     public $timestamps = false;
-
     use SoftDeleteFlag;
-
-    /**
-     * Get columns that can be searched
-     */
     public static function getSearchableColumns(): array
     {
         return ['student_no', 'last_name', 'first_name', 'email'];
     }
-
-    /**
-     * Get allowed sort columns
-     */
     public static function getAllowedSorts(): array
     {
         return ['student_id', 'student_no', 'last_name', 'first_name', 'email', 'year_level', 'birthdate'];

@@ -15,7 +15,37 @@ class Enrollment extends Model
     protected $primaryKey = 'enrollment_id';
     public $timestamps = false;
 
-    protected $fillable = ['student_id','section_id','date_enrolled','status','letter_grade','is_deleted'];
+    protected $fillable = [
+        'student_id',
+        'section_id',
+        'course_id',
+        'date_enrolled',
+        'status',
+        'letter_grade',
+        'is_deleted'
+    ];
 
-    public function student(){ return $this->belongsTo(Student::class,'student_id','student_id'); }
+    protected $casts = [
+        'date_enrolled' => 'datetime',
+    ];
+
+    public function student()
+    { 
+        return $this->belongsTo(Student::class,'student_id','student_id'); 
+    }
+
+    public function section()
+    { 
+        return $this->belongsTo(Section::class,'section_id','section_id'); 
+    }
+
+    public function course()
+    { 
+        return $this->belongsTo(Course::class,'course_id','course_id'); 
+    }
+
+    public static function getAvailableStatuses()
+    {
+        return ['enrolled', 'dropped', 'completed', 'irregular'];
+    }
 }

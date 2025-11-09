@@ -38,8 +38,8 @@
                 <tr>
                     <td>{{ $t->term_id }}</td>
                     <td>{{ $t->term_code }}</td>
-                    <td>{{ $t->start_date }}</td>
-                    <td>{{ $t->end_date }}</td>
+                    <td>{{ $t->start_date ? $t->start_date->format('Y-m-d') : '' }}</td>
+                    <td>{{ $t->end_date ? $t->end_date->format('Y-m-d') : '' }}</td>
                     <td style="display:flex; gap:8px; justify-content:flex-start; align-items:center;">
                         <button onclick="openTermEdit({{ $t->term_id }}, {{ json_encode($t) }})">Edit</button>
                         <button onclick="openTermDelete({{ $t->term_id }})" class="btn-secondary">Delete</button>
