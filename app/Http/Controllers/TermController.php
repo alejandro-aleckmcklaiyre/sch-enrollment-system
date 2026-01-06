@@ -8,10 +8,11 @@ use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 
 class TermController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -59,6 +60,7 @@ class TermController extends Controller
             }
 
             $data['is_deleted'] = 0; // Ensure new terms are not deleted
+            $data['term_id'] = Term::max('term_id') + 1;
             $t = Term::create($data);
             
             return response()->json([
@@ -170,5 +172,15 @@ class TermController extends Controller
 
     // Download with standardized filename
     return $pdf->download($this->getExportFilename('terms', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Term::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'terms';
     }
 }

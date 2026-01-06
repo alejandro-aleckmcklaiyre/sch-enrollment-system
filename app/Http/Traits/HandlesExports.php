@@ -27,7 +27,17 @@ trait HandlesExports
 
         // Use model's primary key or getKeyName() method
         $keyName = (new $model)->getKeyName();
-        return $query->orderBy($keyName, 'asc')->get();
+        if ($keyName) {
+            return $query->orderBy($keyName, 'asc')->get();
+        } else {
+            // For models without primary key, order by first fillable column or don't order
+            $fillable = (new $model)->getFillable();
+            if (!empty($fillable)) {
+                return $query->orderBy($fillable[0], 'asc')->get();
+            } else {
+                return $query->get();
+            }
+        }
     }
 
     /**

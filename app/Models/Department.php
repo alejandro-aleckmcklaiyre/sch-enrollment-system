@@ -16,6 +16,7 @@ class Department extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'dept_id',
         'dept_code',
         'dept_name',
         'is_deleted',

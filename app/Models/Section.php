@@ -13,9 +13,11 @@ class Section extends Model
 
     protected $table = 'tblsection';
     protected $primaryKey = 'section_id';
+    public $incrementing = true;
     public $timestamps = false;
 
     protected $fillable = [
+        'section_id',
         'section_code','course_id','term_id','instructor_id','day_pattern','start_time','end_time','room_id','max_capacity','is_deleted'
     ];
 

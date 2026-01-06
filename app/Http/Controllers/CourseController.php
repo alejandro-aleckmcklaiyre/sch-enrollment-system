@@ -7,11 +7,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CourseController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $query = Course::with('department');
@@ -59,6 +60,7 @@ class CourseController extends Controller
             return response()->json(['message' => 'A course with that course code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
+            $data['course_id'] = Course::max('course_id') + 1;
             $course = Course::create($data);
             \Log::info('Course created: ' . $course->course_id);
             return response()->json(['message' => 'Course created', 'op' => 'add', 'success' => true, 'data' => $course]);
@@ -179,5 +181,20 @@ class CourseController extends Controller
         
         // Generate filename and download
         return $pdf->download($this->getExportFilename('courses', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Course::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'courses';
+    }
+
+    protected function getRelations()
+    {
+        return ['department'];
     }
 }

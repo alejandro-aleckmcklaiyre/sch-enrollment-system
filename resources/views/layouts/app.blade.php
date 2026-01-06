@@ -423,6 +423,30 @@
     }
 </script>
 
+{{-- Flash message alerts --}}
+@if(session('backup_success'))
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const data = @json(session('backup_success'));
+        showAlert('success', {
+            title: 'Backup Completed',
+            detail: `${data.message}\n\nFilename: ${data.filename}\nLocation: ${data.location}\nRecords: ${data.count}`
+        });
+    });
+</script>
+@endif
+
+@if(session('backup_error'))
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        showAlert('error', {
+            title: 'Backup Failed',
+            detail: '{{ session("backup_error") }}'
+        });
+    });
+</script>
+@endif
+
 @stack('scripts')
 </body>
 </html>

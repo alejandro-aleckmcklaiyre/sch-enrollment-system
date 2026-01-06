@@ -8,11 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProgramController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $query = Program::with('department');
@@ -63,6 +64,7 @@ class ProgramController extends Controller
         }
 
         try {
+            $data['program_id'] = Program::max('program_id') + 1;
             $program = Program::create($data);
             \Log::info('Program created: ' . $program->program_id);
             return response()->json(['message' => 'Program created', 'op' => 'add', 'success' => true, 'data' => $program]);
@@ -181,5 +183,20 @@ class ProgramController extends Controller
         $this->applyPdfFooter($pdf);
 
         return $pdf->download($this->getExportFilename('programs', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Program::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'programs';
+    }
+
+    protected function getRelations()
+    {
+        return ['department'];
     }
 }

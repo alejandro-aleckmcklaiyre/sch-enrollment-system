@@ -122,5 +122,23 @@
     .then(resp=>{ handleResponse(resp,'deleteModal'); })
     .catch(err => { console.error(err); showAlert('error', { title: 'Error', detail: 'Request failed' }); });
     });
+
+    document.getElementById('restoreForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        const form = e.target;
+        fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
+    .then(r => r.json().then(data => { data.httpStatus = r.status; return data }))
+    .then(resp=>{ 
+        if(resp.success){
+            showAlert('success', { title: 'Restore Completed', detail: `Processed: ${resp.results.processed}, Created: ${resp.results.created}, Updated: ${resp.results.updated}, Skipped: ${resp.results.skipped}` });
+            closeModal('restoreModal');
+            // Reload the page to show updated data
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showAlert('error', { title: 'Restore Failed', detail: resp.message });
+        }
+    })
+    .catch(err => { console.error(err); showAlert('error', { title: 'Error', detail: 'Request failed' }); });
+    });
 </script>
 @endpush

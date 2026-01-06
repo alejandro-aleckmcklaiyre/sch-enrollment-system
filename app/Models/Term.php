@@ -13,9 +13,10 @@ class Term extends Model
 
     protected $table = 'tblterm';
     protected $primaryKey = 'term_id';
+    public $incrementing = true;
     public $timestamps = false;
 
-    protected $fillable = ['term_code','start_date','end_date','is_deleted'];
+    protected $fillable = ['term_id','term_code','start_date','end_date','is_deleted'];
     
     protected $casts = [
         'start_date' => 'date:Y-m-d',

@@ -27,8 +27,8 @@ trait SoftDeleteFlag
     }
 
     // allow querying including deleted
-    public static function withTrashed()
+    public function scopeWithTrashed($query)
     {
-        return (new static)->newQueryWithoutScope('is_deleted');
+        return $query->withoutGlobalScope('is_deleted');
     }
 }
