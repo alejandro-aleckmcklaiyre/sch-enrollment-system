@@ -163,6 +163,21 @@
         fetch('/enrollments/' + id, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','X-HTTP-Method-Override':'DELETE'}})
     .then(r=>r.json()).then(resp=>{ handleResponse(resp,'deleteEnrollmentModal'); });
     });
+
+    document.getElementById('restoreForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        const form = e.target;
+        fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
+    .then(r=>r.json()).then(resp=>{ 
+        if(resp.success){
+            alert('Restore completed successfully! ' + resp.message);
+            location.reload();
+        } else {
+            alert('Restore failed: ' + resp.message);
+        }
+        closeModal('restoreModal');
+    });
+    });
 </script>
 @endpush
 

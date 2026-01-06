@@ -28,6 +28,7 @@ class Course extends Model
     use SoftDeleteFlag;
 
     protected $fillable = [
+        'course_id',
         'course_code',
         'course_title',
         'units',

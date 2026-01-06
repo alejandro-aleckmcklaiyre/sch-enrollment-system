@@ -10,11 +10,12 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Response;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
     $query = Student::with('program');
@@ -94,6 +95,7 @@ class StudentController extends Controller
             return response()->json(['message' => 'A student with that student number already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
+            $data['student_id'] = Student::max('student_id') + 1;
             $student = Student::create($data);
             \Log::info('Student created: ' . $student->student_id);
             return response()->json(['message' => 'Student created', 'op' => 'add', 'success' => true, 'data' => $student]);
@@ -224,5 +226,20 @@ class StudentController extends Controller
         
         // Generate filename and download
         return $pdf->download($this->getExportFilename('students', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Student::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'students';
+    }
+
+    protected function getRelations()
+    {
+        return ['program'];
     }
 }

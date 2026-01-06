@@ -7,10 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 
 class RoomController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $query = Room::query();
@@ -67,6 +68,7 @@ class RoomController extends Controller
             return response()->json(['message' => 'A room with that code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
+            $data['room_id'] = Room::max('room_id') + 1;
             $room = Room::create($data);
             \Log::info('Room created: ' . $room->room_id);
             return response()->json(['message' => 'Room created', 'op' => 'add', 'success' => true, 'data' => $room]);
@@ -186,5 +188,15 @@ class RoomController extends Controller
 
         // Download with standardized filename
         return $pdf->download($this->getExportFilename('rooms', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Room::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'rooms';
     }
 }

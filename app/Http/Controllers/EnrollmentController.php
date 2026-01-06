@@ -10,11 +10,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 use Maatwebsite\Excel\Facades\Excel;
 
 class EnrollmentController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -269,5 +270,20 @@ class EnrollmentController extends Controller
         });
 
         return response()->json(['courses' => $courses, 'success' => true]);
+    }
+
+    protected function getModelClass()
+    {
+        return Enrollment::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'enrollments';
+    }
+
+    protected function getRelations()
+    {
+        return ['student', 'section', 'course'];
     }
 }

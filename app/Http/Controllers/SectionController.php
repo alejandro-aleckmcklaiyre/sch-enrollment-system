@@ -11,11 +11,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 use Maatwebsite\Excel\Facades\Excel;
 
 class SectionController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -76,6 +77,7 @@ class SectionController extends Controller
         }
 
         try {
+            $data['section_id'] = Section::max('section_id') + 1;
             $sec = Section::create($data);
             return response()->json(['message'=>'Section created', 'op' => 'add', 'success' => true, 'data' => $sec]);
         } catch (\Exception $e) {
@@ -194,5 +196,20 @@ class SectionController extends Controller
 
         // Download with standardized filename
         return $pdf->download($this->getExportFilename('sections', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Section::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'sections';
+    }
+
+    protected function getRelations()
+    {
+        return ['course', 'instructor', 'room', 'term'];
     }
 }

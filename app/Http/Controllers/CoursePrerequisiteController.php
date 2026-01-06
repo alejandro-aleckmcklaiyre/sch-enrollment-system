@@ -9,10 +9,11 @@ use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 
 class CoursePrerequisiteController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     
     public function index(Request $request)
     {
@@ -141,5 +142,20 @@ class CoursePrerequisiteController extends Controller
 
         // Download with standardized filename
         return $pdf->download($this->getExportFilename('course_prerequisites', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return CoursePrerequisite::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'course-prerequisites';
+    }
+
+    protected function getRelations()
+    {
+        return ['course', 'prereq'];
     }
 }

@@ -13,9 +13,11 @@ class Enrollment extends Model
 
     protected $table = 'tblenrollment';
     protected $primaryKey = 'enrollment_id';
+    public $incrementing = true;
     public $timestamps = false;
 
     protected $fillable = [
+        'enrollment_id',
         'student_id',
         'section_id',
         'course_id',

@@ -9,11 +9,12 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DepartmentController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 15);
@@ -57,6 +58,7 @@ class DepartmentController extends Controller
             return response()->json(['message' => 'A department with that code already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
+            $data['dept_id'] = Department::max('dept_id') + 1;
             $dept = Department::create($data);
             \Log::info('Department created: ' . $dept->dept_id);
             // Try to render a single-row partial so the frontend can insert it; if rendering fails, log and return success without row_html
@@ -179,5 +181,15 @@ class DepartmentController extends Controller
         
         // Generate filename and download
         return $pdf->download($this->getExportFilename('departments', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Department::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'departments';
     }
 }

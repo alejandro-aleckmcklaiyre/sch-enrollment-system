@@ -7,10 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Traits\HandlesExports;
+use App\Http\Traits\HandlesBackupRestore;
 
 class InstructorController extends Controller
 {
-    use HandlesExports;
+    use HandlesExports, HandlesBackupRestore;
     public function index(Request $request)
     {
         $query = Instructor::with('department');
@@ -64,6 +65,7 @@ class InstructorController extends Controller
             return response()->json(['message' => 'An instructor with that email already exists in records.', 'op' => 'add', 'success' => false], 409);
         }
         try {
+            $data['instructor_id'] = Instructor::max('instructor_id') + 1;
             $instructor = Instructor::create($data);
             \Log::info('Instructor created: ' . $instructor->instructor_id);
             return response()->json(['message' => 'Instructor created', 'op' => 'add', 'success' => true, 'data' => $instructor]);
@@ -208,5 +210,20 @@ class InstructorController extends Controller
     
         // Generate filename and download
         return $pdf->download($this->getExportFilename('instructors', 'pdf'));
+    }
+
+    protected function getModelClass()
+    {
+        return Instructor::class;
+    }
+
+    protected function getResourceName()
+    {
+        return 'instructors';
+    }
+
+    protected function getRelations()
+    {
+        return ['department'];
     }
 }

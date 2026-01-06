@@ -13,6 +13,7 @@ class Program extends Model
     use SoftDeleteFlag;
 
     protected $fillable = [
+        'program_id',
         'program_code',
         'program_name',
         'is_deleted',

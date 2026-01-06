@@ -57,5 +57,20 @@
 <script>
 function openTermEdit(id,data){ const modal=document.getElementById('editTermModal'); modal.style.display='flex'; document.getElementById('edit_term_id').value = data.term_id || id; modal.querySelector('[name="term_code"]').value = data.term_code || ''; modal.querySelector('[name="start_date"]').value = data.start_date || ''; modal.querySelector('[name="end_date"]').value = data.end_date || ''; }
 function openTermDelete(id){ const modal=document.getElementById('deleteTermModal'); modal.style.display='flex'; document.getElementById('delete_term_id').value = id; }
+
+document.getElementById('restoreForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const form = e.target;
+    fetch(form.action, {method:'POST', headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}, body: new FormData(form)})
+.then(r=>r.json()).then(resp=>{ 
+    if(resp.success){
+        alert('Restore completed successfully! ' + resp.message);
+        location.reload();
+    } else {
+        alert('Restore failed: ' + resp.message);
+    }
+    closeModal('restoreModal');
+});
+});
 </script>
 @endpush

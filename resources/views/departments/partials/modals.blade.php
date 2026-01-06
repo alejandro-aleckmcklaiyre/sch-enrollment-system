@@ -53,6 +53,38 @@
     </div>
 </div>
 
+<div id="restoreModal" class="modal">
+    <div class="box">
+        <h3>Restore Departments</h3>
+        <form id="restoreForm" method="POST" action="{{ url('departments/restore') }}" enctype="multipart/form-data">
+            @csrf
+            <div style="display:flex; flex-direction:column; gap:12px">
+                <div>
+                    <label for="backup_file">Select Backup File:</label>
+                    <input type="file" name="file" id="backup_file" accept=".json" required>
+                </div>
+                <div>
+                    <label for="restore_mode">Restore Mode:</label>
+                    <select name="mode" id="restore_mode" required>
+                        <option value="skip">Skip existing records</option>
+                        <option value="update">Update existing records</option>
+                        <option value="replace">Replace all data</option>
+                    </select>
+                </div>
+                <div style="font-size:0.9em; color:#666;">
+                    <strong>Skip:</strong> Only import new records, ignore existing ones<br>
+                    <strong>Update:</strong> Update existing records, add new ones<br>
+                    <strong>Replace:</strong> Delete all current data and import from backup
+                </div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+                <button type="button" onclick="closeModal('restoreModal')" class="btn-secondary">Cancel</button>
+                <button type="submit">Restore</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 // Unified fetch helper to pass HTTP status and JSON body to handleResponse
 function submitFormWithStatus(fetchPromise, modalId){
