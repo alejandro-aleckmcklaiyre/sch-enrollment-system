@@ -3,8 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Students')</title>
+    <title>@yield('title', 'Enrollment System')</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Minimalist retro earth-tone palette */
         :root{
@@ -212,6 +214,26 @@
     @stack('styles')
 </head>
 <body>
+<nav style="background-color: #2c3e50; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="font-weight: 600; font-size: 1.25rem;">
+        @if(auth()->user()->isAdmin())
+            Admin Dashboard
+        @elseif(auth()->user()->isFaculty())
+            Faculty Portal
+        @else
+            Student Portal
+        @endif
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <span>{{ Auth::user()->name }}</span>
+        <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+            @csrf
+            <button type="submit" style="background: #e74c3c; color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px;">
+                Logout
+            </button>
+        </form>
+    </div>
+</nav>
 <div class="app">
     <aside class="sidebar">
         @include('partials.sidebar')
@@ -219,7 +241,7 @@
     <main class="content">
         <div class="topbar" style="display:flex; align-items:center; gap:12px;">
             <div style="flex:1; display:flex; align-items:center;">
-                <h1 style="margin:0;">@yield('title', 'Students')</h1>
+                <h1 style="margin:0;">@yield('title', 'Enrollment System')</h1>
             </div>
             <div style="display:flex; align-items:center;">
                 @yield('toolbar')
@@ -446,7 +468,10 @@
     });
 </script>
 @endif
+</body>
 
 @stack('scripts')
-</body>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</html>
 </html>

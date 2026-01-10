@@ -38,4 +38,14 @@ class Student extends Model
     {
         return $this->belongsTo(\App\Models\Program::class, 'program_id', 'program_id');
     }
+
+    public function enrollments()
+    {
+        return $this->hasMany(\App\Models\Enrollment::class, 'student_id', 'student_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_id', 'id');
+    }
 }

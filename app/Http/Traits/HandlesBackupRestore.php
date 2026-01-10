@@ -232,73 +232,139 @@ trait HandlesBackupRestore
             'errors' => 0
         ];
 
-        DB::beginTransaction();
-
-        try {
             foreach ($data as $item) {
                 $results['processed']++;
 
-                $model = new $modelClass;
-                $keyName = $model->getKeyName();
+                // Start a transaction per-item so a single failing item doesn't roll back the whole batch
+                DB::beginTransaction();
+                try {
+                    $model = new $modelClass;
+                    $keyName = $model->getKeyName();
 
-                if ($keyName && isset($item[$keyName])) {
-                    // Model with single primary key
-                    $keyValue = $item[$keyName];
-                    $existing = $modelClass::query()->withoutGlobalScope('is_deleted')->find($keyValue);
+                    if ($keyName && isset($item[$keyName])) {
+                        // Model with single primary key
+                        $keyValue = $item[$keyName];
+                        $existing = $modelClass::query()->withoutGlobalScope('is_deleted')->find($keyValue);
 
-                    if ($existing) {
-                        if ($existing->is_deleted == 1) {
-                            // If soft deleted, restore it first
-                            $existing->restore();
-                        }
-                        if ($mode === 'skip') {
-                            $results['skipped']++;
-                            continue;
-                        } elseif ($mode === 'update' || $mode === 'replace') {
-                            $existing->update($item);
-                            $results['updated']++;
-                        }
-                    } else {
-                        $modelClass::create($item);
-                        $results['created']++;
-                    }
-                } else {
-                    // Model without primary key or composite key
-                    // For CoursePrerequisite, check for existing
-                    if ($resourceName === 'course-prerequisites') {
-                        $existing = $modelClass::where('course_id', $item['course_id'] ?? null)
-                                               ->where('prereq_course_id', $item['prereq_course_id'] ?? null)
-                                               ->first();
                         if ($existing) {
+                            if ($existing->is_deleted == 1) {
+                                // If soft deleted, try to restore it first. If a unique constraint prevents
+                                // restoring (duplicate active value), attempt to resolve based on mode.
+                                try {
+                                    $existing->restore();
+                                } catch (\Exception $e) {
+                                    $sqlState = method_exists($e, 'getCode') ? $e->getCode() : null;
+                                    $msg = $e->getMessage();
+                                    if ($sqlState == '23000' || str_contains($msg, 'Duplicate entry')) {
+                                        // Heuristic: handle common unique columns for students (student_no, email)
+                                        if (isset($item['student_no'])) {
+                                            $conflict = $modelClass::where('student_no', $item['student_no'])->where('is_deleted', 0)->first();
+                                            if ($conflict) {
+                                                if ($mode === 'replace') {
+                                                    // soft-delete the conflicting active record so we can restore
+                                                    $conflict->is_deleted = 1;
+                                                    $conflict->save();
+                                                    // retry restore
+                                                    $existing->restore();
+                                                } else {
+                                                    // skip restoring to avoid duplicate constraint
+                                                    $results['skipped']++;
+                                                    DB::rollBack();
+                                                    continue;
+                                                }
+                                            } else {
+                                                // No identifiable conflict - treat as error
+                                                $results['errors']++;
+                                                DB::rollBack();
+                                                continue;
+                                            }
+                                        } elseif (isset($item['email'])) {
+                                            $conflict = $modelClass::where('email', $item['email'])->where('is_deleted', 0)->first();
+                                            if ($conflict) {
+                                                if ($mode === 'replace') {
+                                                    $conflict->is_deleted = 1;
+                                                    $conflict->save();
+                                                    $existing->restore();
+                                                } else {
+                                                    $results['skipped']++;
+                                                    DB::rollBack();
+                                                    continue;
+                                                }
+                                            } else {
+                                                $results['errors']++;
+                                                DB::rollBack();
+                                                continue;
+                                            }
+                                        } else {
+                                            // Unknown duplicate, record error
+                                            $results['errors']++;
+                                            DB::rollBack();
+                                            continue;
+                                        }
+                                    } else {
+                                        // not a duplicate constraint - rethrow for outer handler
+                                        throw $e;
+                                    }
+                                }
+                            }
                             if ($mode === 'skip') {
                                 $results['skipped']++;
+                                DB::rollBack();
                                 continue;
                             } elseif ($mode === 'update' || $mode === 'replace') {
                                 $existing->update($item);
                                 $results['updated']++;
+                            }
+                        } else {
+                            $modelClass::create($item);
+                            $results['created']++;
+                        }
+                    } else {
+                        // Model without primary key or composite key
+                        // For CoursePrerequisite, check for existing
+                        if ($resourceName === 'course-prerequisites') {
+                            $existing = $modelClass::where('course_id', $item['course_id'] ?? null)
+                                                   ->where('prereq_course_id', $item['prereq_course_id'] ?? null)
+                                                   ->first();
+                            if ($existing) {
+                                if ($mode === 'skip') {
+                                    $results['skipped']++;
+                                    DB::rollBack();
+                                    continue;
+                                } elseif ($mode === 'update' || $mode === 'replace') {
+                                    $existing->update($item);
+                                    $results['updated']++;
+                                    DB::commit();
+                                    continue;
+                                }
+                            }
+                        }
+                        // For now, just try to create (may fail if unique constraints)
+                        try {
+                            $modelClass::create($item);
+                            $results['created']++;
+                        } catch (\Exception $e) {
+                            if ($mode === 'skip') {
+                                $results['skipped']++;
+                                DB::rollBack();
+                                continue;
+                            } else {
+                                $results['errors']++;
+                                DB::rollBack();
                                 continue;
                             }
                         }
                     }
-                    // For now, just try to create (may fail if unique constraints)
-                    try {
-                        $modelClass::create($item);
-                        $results['created']++;
-                    } catch (\Exception $e) {
-                        if ($mode === 'skip') {
-                            $results['skipped']++;
-                        } else {
-                            $results['errors']++;
-                        }
-                    }
+
+                    DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    \Log::error('Restore item failed: ' . $e->getMessage() . ' Item:' . json_encode($item));
+                    $results['errors']++;
+                    // continue with next item
+                    continue;
                 }
             }
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
 
         return $results;
     }
