@@ -60,7 +60,18 @@ class StudentController extends Controller
     // provide programs for the program select in modals
     $programs = \App\Models\Program::orderBy('program_name')->get();
 
-    return view('students.index', compact('students','programs'));
+    // Get list of backups
+    $backups = [];
+    $backupDir = storage_path('backups/students');
+    if (is_dir($backupDir)) {
+        $files = array_diff(scandir($backupDir), ['.', '..']);
+        $backups = array_values($files);
+    }
+
+    // Check if this is an admin route
+    $isAdmin = str_starts_with(request()->route()->getName(), 'admin.');
+
+    return view($isAdmin ? 'admin.students.index' : 'students.index', compact('students','programs','backups'));
     }
 
     public function store(Request $request)
@@ -154,6 +165,15 @@ class StudentController extends Controller
             \Log::error('Student delete failed: ' . $e->getMessage());
             return response()->json(['message' => 'Student delete failed', 'op' => 'delete', 'success' => false, 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Fallback show handler - return to index.
+     * This prevents a 500 when a GET /students/{id} is accidentally routed here.
+     */
+    public function show($id)
+    {
+        return redirect()->route('admin.students.index');
     }
 
     // Export to Excel
