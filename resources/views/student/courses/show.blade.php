@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-content')
+@section('content')
 <div class="mb-4">
     <a href="{{ route('student.courses') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Back to Catalog

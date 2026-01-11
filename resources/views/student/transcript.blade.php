@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-content')
+@section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3">My Transcript</h1>
     <button class="btn btn-primary" onclick="window.print()">
@@ -51,7 +51,7 @@
 
 <div class="card">
     <div class="card-header">
-        <h5 class="card-title mb-0">Academic Record</h5>
+        <h5 class="card-title mb-0"><i class="fas fa-book"></i> Academic Record</h5>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -63,6 +63,7 @@
                     <th>Credits</th>
                     <th>Grade</th>
                     <th>Status</th>
+                    <th>Enrollment Date</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,9 +71,9 @@
                     @php
                         $term = $termEnrollments->first()->section->term;
                     @endphp
-                    <tr class="table-active">
-                        <td colspan="6">
-                            <strong>{{ $term->term_name ?? 'Unknown Term' }}</strong>
+                    <tr class="table-active fw-bold">
+                        <td colspan="7">
+                            <i class="fas fa-calendar-alt"></i> {{ $term->term_name ?? 'Unknown Term' }}
                         </td>
                     </tr>
                     @foreach($termEnrollments as $enrollment)
@@ -80,7 +81,9 @@
                         <td></td>
                         <td><strong>{{ $enrollment->section->course->course_code ?? 'N/A' }}</strong></td>
                         <td>{{ $enrollment->section->course->course_title ?? 'N/A' }}</td>
-                        <td>{{ $enrollment->section->course->credit_units ?? '0' }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ $enrollment->section->course->units ?? '0' }}</span>
+                        </td>
                         <td>
                             @if($enrollment->letter_grade)
                                 <span class="badge bg-info">{{ $enrollment->letter_grade }}</span>
@@ -90,14 +93,17 @@
                         </td>
                         <td>
                             @if($enrollment->status === 'COMPLETED')
-                                <span class="badge bg-success">{{ $enrollment->status }}</span>
+                                <span class="badge bg-success"><i class="fas fa-check"></i> {{ $enrollment->status }}</span>
                             @elseif($enrollment->status === 'ENROLLED')
-                                <span class="badge bg-warning">{{ $enrollment->status }}</span>
+                                <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half"></i> {{ $enrollment->status }}</span>
                             @elseif($enrollment->status === 'DROPPED')
-                                <span class="badge bg-danger">{{ $enrollment->status }}</span>
+                                <span class="badge bg-danger"><i class="fas fa-times"></i> {{ $enrollment->status }}</span>
                             @else
                                 <span class="badge bg-secondary">{{ $enrollment->status }}</span>
                             @endif
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ $enrollment->date_enrolled->format('M d, Y') }}</small>
                         </td>
                     </tr>
                     @endforeach

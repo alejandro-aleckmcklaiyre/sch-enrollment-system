@@ -22,8 +22,11 @@ class DashboardController extends Controller
                 'enrollments' => collect(),
                 'currentEnrollments' => collect(),
                 'completedEnrollments' => collect(),
+                'announcements' => collect(),
                 'currentTerm' => null,
                 'totalEnrolled' => 0,
+                'totalCreditsCompleted' => 0,
+                'totalCreditsEnrolled' => 0,
                 'needsProfileSetup' => true,
             ]);
         }
@@ -31,7 +34,7 @@ class DashboardController extends Controller
         // Get current enrollments
         $enrollments = \App\Models\Enrollment::where('student_id', $student->student_id)
             ->where('is_deleted', 0)
-            ->with(['section.course', 'section.instructor', 'section.term'])
+            ->with(['section.course', 'section.instructor', 'section.term', 'section.room'])
             ->get();
 
         // Get current term
@@ -39,21 +42,51 @@ class DashboardController extends Controller
 
         // Get current term enrollments
         $currentEnrollments = $enrollments->filter(function ($enrollment) use ($currentTerm) {
-            return $currentTerm && $enrollment->section && $enrollment->section->term_id == $currentTerm->term_id;
+            return $currentTerm && $enrollment->section && $enrollment->section->term_id == $currentTerm->term_id && $enrollment->status === 'ENROLLED';
         });
 
-        // Calculate GPA (simplified - you may need to adjust based on your grading system)
+        // Calculate completed enrollments
         $completedEnrollments = $enrollments->filter(function ($e) {
             return $e->status === 'COMPLETED' && $e->letter_grade;
         });
+
+        // Calculate total credits
+        $totalCreditsCompleted = $completedEnrollments->sum(function ($e) {
+            return $e->section?->course?->units ?? 0;
+        });
+
+        $totalCreditsEnrolled = $currentEnrollments->sum(function ($e) {
+            return $e->section?->course?->units ?? 0;
+        });
+
+        // Get mock announcements
+        $announcements = collect([
+            [
+                'id' => 1,
+                'title' => 'Welcome to Student Portal',
+                'body' => 'Welcome to the enrollment system. You can view your courses, schedule, and academic progress here.',
+                'date' => now()->subDays(2),
+                'type' => 'system'
+            ],
+            [
+                'id' => 2,
+                'title' => 'Enrollment Period Open',
+                'body' => 'The enrollment period for the next term is now open. You can browse courses in the Course Catalog and enroll in available sections.',
+                'date' => now()->subDays(1),
+                'type' => 'academic'
+            ],
+        ])->take(3);
 
         return view('student.dashboard', [
             'student' => $student,
             'enrollments' => $enrollments,
             'currentEnrollments' => $currentEnrollments,
             'completedEnrollments' => $completedEnrollments,
+            'announcements' => $announcements,
             'currentTerm' => $currentTerm,
             'totalEnrolled' => $enrollments->where('status', 'ENROLLED')->count(),
+            'totalCreditsCompleted' => $totalCreditsCompleted,
+            'totalCreditsEnrolled' => $totalCreditsEnrolled,
             'needsProfileSetup' => false,
         ]);
     }

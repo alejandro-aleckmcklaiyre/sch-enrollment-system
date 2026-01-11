@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-content')
+@section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3">My Schedule</h1>
     @if($currentTerm)
@@ -14,46 +14,55 @@
 </div>
 @else
 
-<div class="row">
-    @foreach($enrollments as $enrollment)
-    <div class="col-md-6 mb-3">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    {{ $enrollment->section->course->course_code ?? 'N/A' }}
-                </h5>
-            </div>
-            <div class="card-body">
-                <p class="mb-2">
-                    <strong class="text-primary" style="font-size: 1.1em;">
-                        {{ $enrollment->section->course->course_title ?? 'Course' }}
-                    </strong>
-                </p>
-                <hr>
-                <p class="mb-2">
-                    <i class="fas fa-user"></i> <strong>Instructor:</strong><br>
-                    {{ $enrollment->section->instructor->first_name ?? 'N/A' }} 
-                    {{ $enrollment->section->instructor->last_name ?? '' }}
-                </p>
-                <p class="mb-2">
-                    <i class="fas fa-map-marker-alt"></i> <strong>Room:</strong><br>
-                    {{ $enrollment->section?->room?->room_number ?? 'TBA' }}
-                    @if($enrollment->section?->room?->building)
-                        ({{ $enrollment->section?->room?->building }})
-                    @endif
-                </p>
-                <p class="mb-2">
-                    <i class="fas fa-calendar"></i> <strong>Schedule:</strong><br>
-                    <small>Contact instructor for specific meeting times</small>
-                </p>
-                <p class="mb-0">
-                    <i class="fas fa-book"></i> <strong>Credits:</strong> 
-                    {{ $enrollment->section->course->credit_units ?? '0' }}
-                </p>
-            </div>
-        </div>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Course Code</th>
+                    <th>Course Title</th>
+                    <th>Section</th>
+                    <th>Instructor</th>
+                    <th>Room</th>
+                    <th>Term</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($enrollments as $enrollment)
+                <tr>
+                    <td>
+                        <strong>{{ $enrollment->section->course->course_code ?? 'N/A' }}</strong>
+                    </td>
+                    <td>{{ $enrollment->section->course->course_title ?? 'N/A' }}</td>
+                    <td>{{ $enrollment->section->section_code ?? 'N/A' }}</td>
+                    <td>
+                        @if($enrollment->section->instructor)
+                            {{ $enrollment->section->instructor->first_name ?? 'N/A' }} 
+                            {{ $enrollment->section->instructor->last_name ?? '' }}
+                        @else
+                            N/A
+                        @endif
+                    </td>
+                    <td>
+                        {{ $enrollment->section?->room?->room_number ?? 'TBA' }}
+                        @if($enrollment->section?->room?->building)
+                            <br><small class="text-muted">({{ $enrollment->section?->room?->building }})</small>
+                        @endif
+                    </td>
+                    <td>
+                        <span class="badge bg-info">{{ $enrollment->section->term->term_name ?? 'N/A' }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ route('student.courses.show', $enrollment->section->course->course_id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View Course
+                        </a>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
-    @endforeach
 </div>
 
 @endif

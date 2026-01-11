@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-content')
+@section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3">Course Catalog</h1>
     @if($currentTerm)
@@ -29,35 +29,51 @@
 </div>
 @else
 
-<div class="row">
-    @foreach($courses as $course)
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title mb-0">{{ $course->course_code ?? 'N/A' }}</h5>
-                <small class="text-muted">{{ $course->department->dept_name ?? 'N/A' }}</small>
-            </div>
-            <div class="card-body">
-                <p class="card-text">{{ $course->course_title ?? 'Course' }}</p>
-                <p class="text-muted small">
-                    <i class="fas fa-book"></i> {{ $course->units ?? '0' }} credits
-                </p>
-                <p class="text-muted small">
-                    {{ strlen($course->course_description ?? '') > 100 ? substr($course->course_description, 0, 100) . '...' : $course->course_description }}
-                </p>
-            </div>
-            <div class="card-footer bg-white">
-                @if(in_array($course->course_id, $enrolledCourseIds))
-                    <span class="badge bg-success">Enrolled</span>
-                @else
-                    <a href="{{ route('student.courses.show', $course->course_id) }}" class="btn btn-sm btn-primary">
-                        View Details
-                    </a>
-                @endif
-            </div>
-        </div>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Course Code</th>
+                    <th>Course Title</th>
+                    <th>Department</th>
+                    <th>Credits</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($courses as $course)
+                <tr>
+                    <td>
+                        <strong>{{ $course->course_code ?? 'N/A' }}</strong>
+                    </td>
+                    <td>{{ $course->course_title ?? 'N/A' }}</td>
+                    <td>{{ $course->department->dept_name ?? 'N/A' }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ $course->units ?? '0' }}</span>
+                    </td>
+                    <td>
+                        <small>{{ strlen($course->course_description ?? '') > 60 ? substr($course->course_description, 0, 60) . '...' : $course->course_description }}</small>
+                    </td>
+                    <td>
+                        @if(in_array($course->course_id, $enrolledCourseIds))
+                            <span class="badge bg-success"><i class="fas fa-check"></i> Enrolled</span>
+                        @else
+                            <span class="badge bg-warning text-dark">Available</span>
+                        @endif
+                    </td>
+                    <td>
+                        <a href="{{ route('student.courses.show', $course->course_id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
-    @endforeach
 </div>
 
 <!-- Pagination -->
