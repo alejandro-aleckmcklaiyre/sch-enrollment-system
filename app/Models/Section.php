@@ -25,4 +25,5 @@ class Section extends Model
     public function instructor(){ return $this->belongsTo(Instructor::class,'instructor_id','instructor_id'); }
     public function room(){ return $this->belongsTo(Room::class,'room_id','room_id'); }
     public function term(){ return $this->belongsTo(Term::class,'term_id','term_id'); }
+    public function enrollments(){ return $this->hasMany(Enrollment::class,'section_id','section_id'); }
 }

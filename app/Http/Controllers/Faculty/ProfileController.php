@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 
 class ProfileController extends Controller
@@ -46,5 +47,23 @@ class ProfileController extends Controller
         $instructor->update($validated);
 
         return redirect()->back()->with('success', 'Profile updated successfully');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', function ($attribute, $value, $fail) {
+                if (!Hash::check($value, Auth::user()->password)) {
+                    $fail('The current password is incorrect.');
+                }
+            }],
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        Auth::user()->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return redirect()->back()->with('success', 'Password updated successfully');
     }
 }

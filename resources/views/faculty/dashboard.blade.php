@@ -4,50 +4,45 @@
 
 @section('content')
 
-@if ($needsProfileSetup)
-    <!-- Welcome Section for new faculty -->
-    <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
-        <h2 style="margin-bottom: 16px; font-size: 1.3em; color: #2e2a26;">Welcome to the Faculty Portal</h2>
-        <p style="margin-bottom: 12px; color: #666;">Your account has been successfully created. Before you can view your assigned sections and manage grades, please complete your faculty profile.</p>
-        <p style="margin-bottom: 20px; color: #666;">Click the button below to set up your profile information:</p>
-        <a href="{{ route('faculty.profile') }}" style="display: inline-block; background: #7a6a4f; color: #f5f0ea; padding: 8px 16px; border-radius: 4px; text-decoration: none; cursor: pointer;">
-            Complete Your Profile
-        </a>
-    </div>
-
-@else
-    <!-- Welcome & Stats Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
-            <div style="text-align: center;">
-                <div style="font-size: 2.5em; font-weight: bold; color: #7a6a4f;">{{ $totalSections }}</div>
-                <div style="font-size: 0.9em; color: #8a8073; margin-top: 8px;">Assigned Sections</div>
-            </div>
-        </div>
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
-            <div style="text-align: center;">
-                <div style="font-size: 2.5em; font-weight: bold; color: #7a6a4f;">{{ $totalStudents }}</div>
-                <div style="font-size: 0.9em; color: #8a8073; margin-top: 8px;">Total Students</div>
-            </div>
-        </div>
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
-            <div style="text-align: center;">
-                <div style="font-size: 2.5em; font-weight: bold; color: #7a6a4f;">{{ $totalEnrollments }}</div>
-                <div style="font-size: 0.9em; color: #8a8073; margin-top: 8px;">Total Enrollments</div>
-            </div>
+<!-- Welcome & Stats Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; font-weight: bold; color: #7a6a4f;">{{ $totalSections ?? 0 }}</div>
+            <div style="font-size: 0.9em; color: #8a8073; margin-top: 8px;">Assigned Sections</div>
         </div>
     </div>
+    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; font-weight: bold; color: #7a6a4f;">{{ $totalStudents ?? 0 }}</div>
+            <div style="font-size: 0.9em; color: #8a8073; margin-top: 8px;">Total Students</div>
+        </div>
+    </div>
+    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03);">
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; font-weight: bold; color: #7a6a4f;">{{ $totalEnrollments ?? 0 }}</div>
+            <div style="font-size: 0.9em; color: #8a8073; margin-top: 8px;">Total Enrollments</div>
+        </div>
+    </div>
+</div>
 
-    <!-- Welcome Message -->
-    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03); margin-bottom: 24px;">
+<!-- Welcome Message -->
+<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03); margin-bottom: 24px;">
+    @if($instructor)
         <h2 style="margin: 0 0 8px 0; font-size: 1.2em; color: #2e2a26;">Welcome, {{ $instructor->first_name }} {{ $instructor->last_name }}</h2>
         <p style="margin: 0; color: #666; font-size: 0.95em;">
             <strong>Department:</strong> {{ $instructor->department->dept_name ?? 'N/A' }} | 
             <strong>Email:</strong> {{ $instructor->email }}
         </p>
-    </div>
+    @else
+        <h2 style="margin: 0 0 8px 0; font-size: 1.2em; color: #2e2a26;">Welcome to Faculty Portal</h2>
+        <p style="margin: 0; color: #666; font-size: 0.95em;">
+            You can start managing your sections and courses. Your profile information can be updated anytime.
+        </p>
+    @endif
+</div>
 
-    <!-- My Assigned Sections -->
+<!-- My Assigned Sections -->
     <div style="background: white; padding: 0; border-radius: 8px; box-shadow: 0 1px 0 rgba(0,0,0,0.03); margin-bottom: 24px;">
         <div style="padding: 16px; border-bottom: 1px solid #c4b59f;">
             <h3 style="margin: 0; font-size: 1.1em; color: #2e2a26;">My Assigned Sections</h3>
@@ -122,7 +117,5 @@
         </div>
     </div>
     @endif
-
-@endif
 
 @endsection
