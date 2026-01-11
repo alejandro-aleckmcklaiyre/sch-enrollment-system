@@ -282,6 +282,7 @@ Route::middleware(['auth', 'faculty'])->prefix('faculty')->name('faculty.')->gro
     Route::get('/reports', [App\Http\Controllers\Faculty\ReportsController::class, 'index'])->name('reports');
     Route::get('/profile', [App\Http\Controllers\Faculty\ProfileController::class, 'show'])->name('profile');
     Route::put('/profile', [App\Http\Controllers\Faculty\ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [App\Http\Controllers\Faculty\ProfileController::class, 'updatePassword'])->name('profile.update-password');
 });
 
 // ==============================================

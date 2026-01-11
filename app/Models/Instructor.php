@@ -16,8 +16,7 @@ class Instructor extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'instructor_id',
-        'last_name','first_name','email','dept_id','is_deleted'
+        'user_id','instructor_id','last_name','first_name','email','dept_id','is_deleted'
     ];
     
 
