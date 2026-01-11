@@ -31,6 +31,7 @@ class Student extends Model
         'birthdate',
         'year_level',
         'program_id',
+        'user_id',
         'is_deleted',
     ];
 

@@ -17,7 +17,7 @@ class AnnouncementsController extends Controller
 
         // For now, show mock announcements
         // In a full implementation, this would query a proper announcements table
-        $announcements = [
+        $announcements = collect([
             [
                 'id' => 1,
                 'title' => 'Welcome to Student Portal',
@@ -32,7 +32,7 @@ class AnnouncementsController extends Controller
                 'date' => now()->subDays(1),
                 'type' => 'academic'
             ],
-        ];
+        ]);
 
         return view('student.announcements', [
             'announcements' => $announcements,

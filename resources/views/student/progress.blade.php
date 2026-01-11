@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page-content')
+@section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3">Academic Progress</h1>
 </div>
@@ -80,7 +80,7 @@
 @if($currentTermEnrollments->isNotEmpty())
 <div class="card">
     <div class="card-header">
-        <h5 class="card-title mb-0">Current Term Courses</h5>
+        <h5 class="card-title mb-0"><i class="fas fa-calendar-alt"></i> Current Term Courses</h5>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -88,7 +88,9 @@
                 <tr>
                     <th>Course Code</th>
                     <th>Course Title</th>
+                    <th>Section</th>
                     <th>Instructor</th>
+                    <th>Credits</th>
                     <th>Status</th>
                     <th>Grade</th>
                 </tr>
@@ -98,12 +100,16 @@
                 <tr>
                     <td><strong>{{ $enrollment->section->course->course_code ?? 'N/A' }}</strong></td>
                     <td>{{ $enrollment->section->course->course_title ?? 'N/A' }}</td>
+                    <td>{{ $enrollment->section->section_code ?? 'N/A' }}</td>
                     <td>{{ $enrollment->section->instructor->first_name ?? 'N/A' }} {{ $enrollment->section->instructor->last_name ?? '' }}</td>
                     <td>
+                        <span class="badge bg-secondary">{{ $enrollment->section->course->units ?? '0' }}</span>
+                    </td>
+                    <td>
                         @if($enrollment->status === 'ENROLLED')
-                            <span class="badge bg-warning">{{ $enrollment->status }}</span>
+                            <span class="badge bg-success"><i class="fas fa-hourglass-half"></i> {{ $enrollment->status }}</span>
                         @elseif($enrollment->status === 'COMPLETED')
-                            <span class="badge bg-success">{{ $enrollment->status }}</span>
+                            <span class="badge bg-primary"><i class="fas fa-check"></i> {{ $enrollment->status }}</span>
                         @else
                             <span class="badge bg-secondary">{{ $enrollment->status }}</span>
                         @endif
@@ -117,6 +123,118 @@
                     </td>
                 </tr>
                 @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-list"></i> All Enrollment Summary</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Course Code</th>
+                    <th>Course Title</th>
+                    <th>Term</th>
+                    <th>Credits</th>
+                    <th>Status</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($allEnrollments as $enrollment)
+                <tr>
+                    <td><strong>{{ $enrollment->section->course->course_code ?? 'N/A' }}</strong></td>
+                    <td>{{ $enrollment->section->course->course_title ?? 'N/A' }}</td>
+                    <td>{{ $enrollment->section->term->term_name ?? 'N/A' }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ $enrollment->section->course->units ?? '0' }}</span>
+                    </td>
+                    <td>
+                        @if($enrollment->status === 'COMPLETED')
+                            <span class="badge bg-success"><i class="fas fa-check"></i> {{ $enrollment->status }}</span>
+                        @elseif($enrollment->status === 'ENROLLED')
+                            <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half"></i> {{ $enrollment->status }}</span>
+                        @elseif($enrollment->status === 'DROPPED')
+                            <span class="badge bg-danger"><i class="fas fa-times"></i> {{ $enrollment->status }}</span>
+                        @else
+                            <span class="badge bg-secondary">{{ $enrollment->status }}</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($enrollment->letter_grade)
+                            <span class="badge bg-info">{{ $enrollment->letter_grade }}</span>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No enrollments found
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+@else
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-list"></i> All Enrollment Summary</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Course Code</th>
+                    <th>Course Title</th>
+                    <th>Term</th>
+                    <th>Credits</th>
+                    <th>Status</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($allEnrollments as $enrollment)
+                <tr>
+                    <td><strong>{{ $enrollment->section->course->course_code ?? 'N/A' }}</strong></td>
+                    <td>{{ $enrollment->section->course->course_title ?? 'N/A' }}</td>
+                    <td>{{ $enrollment->section->term->term_name ?? 'N/A' }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ $enrollment->section->course->units ?? '0' }}</span>
+                    </td>
+                    <td>
+                        @if($enrollment->status === 'COMPLETED')
+                            <span class="badge bg-success"><i class="fas fa-check"></i> {{ $enrollment->status }}</span>
+                        @elseif($enrollment->status === 'ENROLLED')
+                            <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half"></i> {{ $enrollment->status }}</span>
+                        @elseif($enrollment->status === 'DROPPED')
+                            <span class="badge bg-danger"><i class="fas fa-times"></i> {{ $enrollment->status }}</span>
+                        @else
+                            <span class="badge bg-secondary">{{ $enrollment->status }}</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($enrollment->letter_grade)
+                            <span class="badge bg-info">{{ $enrollment->letter_grade }}</span>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No enrollments found
+                    </td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
     </div>

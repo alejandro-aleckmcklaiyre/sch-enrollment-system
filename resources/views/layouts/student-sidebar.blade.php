@@ -15,7 +15,7 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link @if(request()->routeIs('student.courses*')) active @endif" href="{{ route('student.courses') }}">
+        <a class="nav-link @if(request()->routeIs('student.courses') || request()->routeIs('student.courses.show')) active @endif" href="{{ route('student.courses') }}">
             <i class="fas fa-book"></i> Course Catalog
         </a>
     </li>
